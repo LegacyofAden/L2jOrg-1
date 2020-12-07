@@ -41,9 +41,9 @@ public class Zaken extends AbstractNpcAI
 	// NPC
 	private static final int ZAKEN = 29022;
 	// Location
-	private static final int ZAKEN_X = 52207;
-	private static final int ZAKEN_Y = 217230;
-	private static final int ZAKEN_Z = -3341;
+	private static final int ZAKEN_X = 43000;
+	private static final int ZAKEN_Y = 206940;
+	private static final int ZAKEN_Z = -3753;
 	
 	private Zaken()
 	{

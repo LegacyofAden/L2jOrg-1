@@ -322,7 +322,7 @@
             <height normal="15"/>
         </collision>
     </npc>
-    <npc id="29006" level="50" type="GrandBoss" name="Core">
+    <npc id="29006" level="85" type="GrandBoss" name="Core">
         <parameters>
             <minions name="Privates">
                 <npc id="29008" count="3" respawnTime="360" weightPoint="1"/>
@@ -332,11 +332,11 @@
         </parameters>
         <race>CONSTRUCT</race>
         <sex>MALE</sex>
-        <acquire exp="2041407" sp="61242" raidPoints="300"/>
-        <stats str="60" int="76" dex="73" wit="70" con="57" men="80">
-            <vitals hp="289902.43642" hpRegen="145.2219912" mp="2901.03" mpRegen="2.1"/>
-            <attack physical="722.31" magical="1398.68" random="30" critical="7" accuracy="40" attackSpeed="172" type="FIST" range="40" distance="80" width="120"/>
-            <defence physical="1602" magical="293"/>
+        <acquire exp="0" sp="0" raidPoints="0"/>
+        <stats con="28" dex="19" int="32" men="1" str="35" wit="20">
+            <vitals hp="40218408.9219331" hpRegen="185.09694484" mp="1887395" mpRegen="96.8"/>
+            <attack physical="2722.31" magical="2398.68" random="30" critical="7" accuracy="40" attackSpeed="172" type="FIST" range="40" distance="80" width="120"/>
+            <defence physical="2602" magical="2293"/>
             <speed>
                 <walk ground="50"/>
                 <run ground="110"/>
@@ -369,85 +369,123 @@
         </collision>
         <dropLists>
             <drop>
-                <item id="917" min="1" max="1" chance="33.35"/> <!-- Necklace of Mermaid -->
-                <item id="1149" min="1" max="3" chance="32.97"/> <!-- Shining Circlet -->
-                <item id="608" min="1" max="3" chance="32.46"/> <!-- Mithril Gauntlets -->
-                <item id="854" min="1" max="3" chance="32.43"/> <!-- Earring of Seal -->
-                <item id="885" min="1" max="3" chance="32.34"/> <!-- Ring of Ages -->
-                <item id="1127" min="1" max="3" chance="31.87"/> <!-- Forgotten Boots -->
-                <item id="2459" min="1" max="1" chance="25.94"/> <!-- Demon's Gloves -->
-                <item id="2460" min="1" max="1" chance="25.53"/> <!-- Theca Leather Gloves -->
-                <item id="472" min="1" max="1" chance="25.22"/> <!-- Demon's Stockings -->
-                <item id="2436" min="1" max="1" chance="25.13"/> <!-- Theca Leather Boots -->
-                <item id="441" min="1" max="1" chance="24.97"/> <!-- Demon's Tunic -->
-                <item id="420" min="1" max="1" chance="24.96"/> <!-- Theca Leather Gaiters -->
-                <item id="400" min="1" max="1" chance="24.4"/> <!-- Theca Leather Armor -->
-                <item id="2435" min="1" max="1" chance="24.39"/> <!-- Demon's Boots -->
-                <item id="107" min="1" max="3" chance="20.86"/> <!-- Compound Shield -->
-                <item id="499" min="1" max="3" chance="20.67"/> <!-- Mithril Helmet -->
-                <item id="2462" min="1" max="1" chance="20.56"/> <!-- Full Plate Gauntlets -->
-                <item id="356" min="1" max="1" chance="20.4"/> <!-- Full Plate Armor -->
-                <item id="1128" min="1" max="3" chance="20.31"/> <!-- Adamantite Boots -->
-                <item id="2438" min="1" max="1" chance="20.28"/> <!-- Full Plate Boots -->
-                <item id="2497" min="1" max="1" chance="20.24"/> <!-- Full Plate Shield -->
-                <item id="517" min="1" max="3" chance="20.03"/> <!-- Compound Helmet -->
-                <item id="2414" min="1" max="1" chance="19.98"/> <!-- Full Plate Helmet -->
-                <item id="64" min="1" max="1" chance="19.93"/> <!-- Compound Boots -->
-                <item id="6662" min="1" max="1" chance="19.92"/> <!-- Ring of Core -->
-                <item id="442" min="1" max="1" chance="19.84"/> <!-- Divine Tunic -->
-                <item id="603" min="1" max="3" chance="19.8"/> <!-- Divine Boots -->
-                <item id="103" min="1" max="3" chance="19.7"/> <!-- Tower Shield -->
-                <item id="2437" min="1" max="1" chance="19.62"/> <!-- Drake Leather Boots -->
-                <item id="60" min="1" max="1" chance="19.61"/> <!-- Compound Armor -->
-                <item id="401" min="1" max="1" chance="19.48"/> <!-- Drake Leather Armor -->
-                <item id="2461" min="1" max="1" chance="19.47"/> <!-- Drake Leather Gloves -->
-                <item id="2468" min="1" max="3" chance="19.27"/> <!-- Blessed Gloves -->
-                <item id="2463" min="1" max="1" chance="19.08"/> <!-- Divine Gloves -->
-                <item id="473" min="1" max="1" chance="19.05"/> <!-- Divine Stockings -->
-                <item id="888" min="1" max="3" chance="17.17"/> <!-- Blessed Ring -->
-                <item id="119" min="1" max="1" chance="17"/> <!-- Necklace of Seal -->
-                <item id="855" min="1" max="3" chance="16.98"/> <!-- Nassen's Earring -->
-                <item id="919" min="1" max="1" chance="16.94"/> <!-- Blessed Necklace -->
-                <item id="886" min="1" max="3" chance="16.11"/> <!-- Ring of Seal -->
-                <item id="857" min="1" max="3" chance="15.88"/> <!-- Holy Earring -->
-                <item id="206" min="1" max="1" chance="11.62"/> <!-- Demon's Staff -->
-                <item id="2503" min="1" max="1" chance="11.55"/> <!-- Yaksa Mace -->
-                <item id="286" min="1" max="1" chance="11.51"/> <!-- Eminence Bow -->
-                <item id="205" min="1" max="1" chance="11.44"/> <!-- Ghoul's Staff -->
-                <item id="266" min="1" max="1" chance="11.18"/> <!-- Great Pata -->
-                <item id="135" min="1" max="1" chance="11.05"/> <!-- Samurai Long Sword -->
-                <item id="228" min="1" max="1" chance="11.01"/> <!-- Crystal Dagger -->
-                <item id="299" min="1" max="1" chance="10.99"/> <!-- Orcish Poleaxe -->
-                <item id="204" min="1" max="1" chance="10.93"/> <!-- Deadman's Staff -->
-                <item id="303" min="1" max="1" chance="4.312"/> <!-- Widow Maker -->
-                <item id="95" min="1" max="1" chance="4.229"/> <!-- Poleaxe -->
-                <item id="203" min="1" max="1" chance="4.225"/> <!-- Pa'agrio Axe -->
-                <item id="162" min="1" max="1" chance="4.223"/> <!-- War Axe -->
-                <item id="283" min="1" max="1" chance="4.212"/> <!-- Akat Longbow -->
-                <item id="77" min="1" max="1" chance="4.211"/> <!-- Tsurugi -->
-                <item id="145" min="1" max="1" chance="4.208"/> <!-- Sword of Whispering Death -->
-                <item id="134" min="1" max="1" chance="4.201"/> <!-- Sword of Nightmare -->
-                <item id="197" min="1" max="1" chance="4.2"/> <!-- Paradia Staff -->
-                <item id="76" min="1" max="1" chance="4.195"/> <!-- Sword of Delusion -->
-                <item id="84" min="1" max="1" chance="4.185"/> <!-- Homunkulus' Sword -->
-                <item id="198" min="1" max="1" chance="4.183"/> <!-- Inferno Staff -->
-                <item id="174" min="1" max="1" chance="4.173"/> <!-- Nirvana Axe -->
-                <item id="132" min="1" max="1" chance="4.163"/> <!-- Ultimate Sword -->
-                <item id="196" min="1" max="1" chance="4.159"/> <!-- Stick of Eternity -->
-                <item id="233" min="1" max="1" chance="4.154"/> <!-- Dark Screamer -->
-                <item id="202" min="1" max="1" chance="4.151"/> <!-- Mace of Underworld -->
-                <item id="201" min="1" max="1" chance="4.146"/> <!-- Club of Nature -->
-                <item id="301" min="1" max="1" chance="4.143"/> <!-- Scorpion -->
-                <item id="200" min="1" max="1" chance="4.139"/> <!-- Sage's Staff -->
-                <item id="75" min="1" max="1" chance="4.127"/> <!-- Caliburs -->
-                <item id="199" min="1" max="1" chance="4.127"/> <!-- Pa'agrio Hammer -->
-                <item id="231" min="1" max="1" chance="4.111"/> <!-- Grace Dagger -->
-                <item id="265" min="1" max="1" chance="4.099"/> <!-- Fisted Blade -->
-                <item id="70000" min="297" max="891" chance="100"/> <!-- Sealed Rune - Stage 1 -->
-                <item id="91529" min="1" max="1" chance="100"/> <!-- Elite Weapon Varnish (C-grade) -->
-                <item id="91536" min="1" max="1" chance="100"/> <!-- Elite Armor Varnish (C-grade) -->
-                <item id="91543" min="1" max="1" chance="100"/> <!-- Elite Accessory Varnish (C-grade) -->
-                <item id="8620" min="1" max="3" chance="49.64"/> <!-- Ancient Book: Divine Inspiration (Manuscript) -->
+                <item id="6662" min="1" max="1" chance="7.765"/>
+                <item id="5315" min="1" max="1" chance="2.025"/>
+                <item id="5293" min="1" max="1" chance="1.975"/>
+                <item id="5316" min="1" max="1" chance="1.962"/>
+                <item id="5297" min="1" max="1" chance="1.961"/>
+                <item id="5295" min="1" max="1" chance="1.957"/>
+                <item id="5298" min="1" max="1" chance="1.953"/>
+                <item id="5292" min="1" max="1" chance="1.951"/>
+                <item id="5290" min="1" max="1" chance="1.940"/>
+                <item id="5289" min="1" max="1" chance="1.928"/>
+                <item id="5301" min="1" max="1" chance="1.928"/>
+                <item id="5317" min="1" max="1" chance="1.926"/>
+                <item id="5288" min="1" max="1" chance="1.922"/>
+                <item id="5296" min="1" max="1" chance="1.903"/>
+                <item id="5305" min="1" max="1" chance="1.900"/>
+                <item id="5287" min="1" max="1" chance="1.895"/>
+                <item id="5329" min="1" max="1" chance="1.890"/>
+                <item id="5318" min="1" max="1" chance="1.889"/>
+                <item id="5319" min="1" max="1" chance="1.875"/>
+                <item id="5323" min="1" max="1" chance="1.862"/>
+                <item id="5314" min="1" max="1" chance="1.852"/>
+                <item id="5304" min="1" max="1" chance="1.840"/>
+                <item id="5308" min="1" max="1" chance="1.837"/>
+                <item id="5312" min="1" max="1" chance="1.834"/>
+                <item id="5311" min="1" max="1" chance="1.834"/>
+                <item id="5313" min="1" max="1" chance="1.833"/>
+                <item id="5326" min="1" max="1" chance="1.829"/>
+                <item id="5320" min="1" max="1" chance="1.829"/>
+                <item id="5294" min="1" max="1" chance="1.828"/>
+                <item id="5291" min="1" max="1" chance="1.825"/>
+                <item id="269" min="1" max="1"  chance="1.563"/>
+                <item id="7895" min="1" max="1" chance="1.559"/>
+                <item id="288" min="1" max="1"  chance="1.552"/>
+                <item id="2500" min="1" max="1" chance="1.550"/>
+                <item id="98" min="1" max="1" chance="1.548"/>
+                <item id="150" min="1" max="1"  chance="1.530"/>
+                <item id="164" min="1" max="1"  chance="1.521"/>
+                <item id="7884" min="1" max="1" chance="1.509"/>
+                <item id="2504" min="1" max="1" chance="1.509"/>
+                <item id="151" min="1" max="1"  chance="1.490"/>
+                <item id="305" min="1" max="1"  chance="1.487"/>
+                <item id="7899" min="1" max="1" chance="1.486"/>
+                <item id="289" min="1" max="1"  chance="1.479"/>
+                <item id="7894" min="1" max="1" chance="1.472"/>
+                <item id="7902" min="1" max="1" chance="1.475"/>
+                <item id="236" min="1" max="1"  chance="1.457"/>
+                <item id="270" min="1" max="1"  chance="1.454"/>
+                <item id="212" min="1" max="1"  chance="1.451"/>
+                <item id="80" min="1" max="1" chance="1.443"/>
+                <item id="81" min="1" max="1" chance="1.440"/>
+                <item id="235" min="1" max="1"  chance="1.437"/>
+                <item id="213" min="1" max="1"  chance="1.434"/>
+                <item id="8687" min="1" max="1" chance="1"/>
+                <item id="8686" min="1" max="1" chance="1"/>
+                <item id="8685" min="1" max="1" chance="1"/>
+                <item id="8684" min="1" max="1" chance="1"/>
+                <item id="8683" min="1" max="1" chance="1"/>
+                <item id="8682" min="1" max="1" chance="1"/>
+                <item id="8681" min="1" max="1" chance="1"/>
+                <item id="8680" min="1" max="1" chance="1"/>
+                <item id="8679" min="1" max="1" chance="1"/>
+                <item id="8678" min="1" max="1" chance="1"/>
+                <item id="8688" min="1" max="1" chance="1"/>
+                <item id="70000" min="297" max="891" chance="100"/>
+                <item id="94188" min="1" max="1" chance="93.76"/>
+                <item id="33809" min="1" max="1" chance="53.11"/>
+                <item id="33815" min="1" max="1" chance="52.80"/>
+                <item id="91527" min="1" max="1" chance="45.08"/>
+                <item id="91541" min="1" max="1" chance="44.94"/>
+                <item id="91534" min="1" max="1" chance="44.38"/>
+                <item id="8618" min="1" max="1" chance="44.01"/>
+                <item id="91543" min="1" max="1" chance="34.06"/>
+                <item id="91536" min="1" max="1" chance="33.02"/>
+                <item id="8619" min="1" max="1" chance="32.69"/>
+                <item id="91529" min="1" max="1" chance="32.24"/>
+                <item id="8620" min="1" max="1" chance="21.80"/>
+                <item id="91538" min="1" max="1" chance="21.78"/>
+                <item id="91531" min="1" max="1" chance="21.41"/>
+                <item id="91545" min="1" max="1" chance="21.17"/>
+                <item id="94186" min="1" max="1" chance="17.96"/>
+                <item id="91549" min="1" max="1" chance="11.044"/>
+                <item id="8621" min="1" max="1" chance="11.043"/>
+                <item id="91548" min="1" max="1" chance="10.981"/>
+                <item id="91547" min="1" max="1" chance="10.950"/>
+                <item id="91521" min="1" max="1" chance="1"/>
+                <item id="91520" min="1" max="1" chance="1"/>
+                <item id="91513" min="1" max="1" chance="1"/>
+                <item id="91519" min="1" max="1" chance="1"/>
+                <item id="91522" min="1" max="1" chance="1"/>
+                <item id="91523" min="1" max="1" chance="1"/>
+                <item id="91524" min="1" max="1" chance="1"/>
+                <item id="91525" min="1" max="1" chance="1"/>
+                <item id="91500" min="1" max="1" chance="1"/>
+                <item id="91518" min="1" max="1" chance="1"/>
+                <item id="91517" min="1" max="1" chance="1"/>
+                <item id="91516" min="1" max="1" chance="1"/>
+                <item id="91499" min="1" max="1" chance="1"/>
+                <item id="91501" min="1" max="1" chance="1"/>
+                <item id="91502" min="1" max="1" chance="1"/>
+                <item id="91503" min="1" max="1" chance="1"/>
+                <item id="91504" min="1" max="1" chance="1"/>
+                <item id="91506" min="1" max="1" chance="1"/>
+                <item id="91507" min="1" max="1" chance="1"/>
+                <item id="91508" min="1" max="1" chance="1"/>
+                <item id="91505" min="1" max="1" chance="1"/>
+                <item id="91509" min="1" max="1" chance="1"/>
+                <item id="91510" min="1" max="1" chance="1"/>
+                <item id="91511" min="1" max="1" chance="1"/>
+                <item id="91512" min="1" max="1" chance="1"/>
+                <item id="91514" min="1" max="1" chance="1"/>
+                <item id="91515" min="1" max="1" chance="1"/>
+                <item id="91403" min="1" max="1" chance="0.5"/>
+                <item id="91404" min="1" max="1" chance="0.5"/>
+                <item id="91405" min="1" max="1" chance="0.5"/>
+                <item id="91401" min="1" max="1" chance="0.5"/>
+                <item id="91402" min="1" max="1" chance="0.5"/>
+                <item id="91400" min="1" max="1" chance="0.5"/>
             </drop>
         </dropLists>
     </npc>

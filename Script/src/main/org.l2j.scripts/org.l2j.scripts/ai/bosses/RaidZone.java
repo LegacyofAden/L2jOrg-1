@@ -14,6 +14,7 @@ public class RaidZone extends AbstractNpcAI {
         29001, // Queen Ant
         29006, // Core
         29014, // Orfen
+        29022, // Zaken
         25010, // Furious Thiles
         25013, // Ghose of Peasant Captain
         25050, // Verfa

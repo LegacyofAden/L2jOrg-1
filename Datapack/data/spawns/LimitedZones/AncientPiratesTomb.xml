@@ -12,7 +12,6 @@
 			<npc id="21941" x="19619" y="-75610" z="-6265" heading="57" respawnTime="60sec" /> <!-- Pirate Shaman -->
 			<npc id="21940" x="19617" y="-75961" z="-6265" heading="54014" respawnTime="60sec" /> <!-- Pirate Trooper -->
 			<npc id="21944" x="19629" y="-75506" z="-6265" heading="33635" respawnTime="60sec" /> <!-- Eric -->
-			<npc id="18358" x="17454" y="-77806" z="-6265" heading="52342" respawnTime="1800sec" respawnRandom="300sec"/> <!-- Goldberg's Steward -->
 			<npc id="21942" x="19453" y="-75495" z="-6265" heading="32116" respawnTime="60sec" /> <!-- Pirate Shield-Bearer -->
 			<npc id="21939" x="19509" y="-76881" z="-6265" heading="62882" respawnTime="60sec" /> <!-- Pirate Janitor -->
 			<npc id="21939" x="19834" y="-76868" z="-6265" heading="33316" respawnTime="60sec" /> <!-- Pirate Janitor -->
@@ -178,5 +177,22 @@
 			<npc id="21942" x="16187" y="-75727" z="-5945" heading="51597" respawnTime="60sec" /> <!-- Pirate Shield-Bearer -->
 			<npc id="21942" x="15400" y="-75713" z="-5942" heading="32582" respawnTime="60sec" /> <!-- Pirate Shield-Bearer -->
 		</group>
+	</spawn>
+	<spawn>
+		<territories>
+			<territory name="Golderg_Stewart" minZ="-6260" maxZ="-6250">
+				<node x="18794" y="-75286"/>
+				<node x="19872" y="-75270"/>
+				<node x="19852" y="-76281"/>
+				<node x="18846" y="-76309"/>
+			</territory>
+			<territory name="Golderg_Stewart_1" minZ="-6262" maxZ="-6250">
+				<node x="20622" y="-75834"/>
+				<node x="20658" y="-74911"/>
+				<node x="21626" y="-74876"/>
+				<node x="21704" y="-75844"/>
+			</territory>
+		</territories>
+		<npc id="18358" count="1" respawnTime="1800sec" respawnRandom="300sec"/> <!-- Goldberg's Steward -->
 	</spawn>
 </list>
