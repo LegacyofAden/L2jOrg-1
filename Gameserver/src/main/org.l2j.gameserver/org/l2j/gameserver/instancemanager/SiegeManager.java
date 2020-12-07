@@ -18,9 +18,11 @@
  */
 package org.l2j.gameserver.instancemanager;
 
-import org.l2j.commons.database.DatabaseFactory;
+import io.github.joealisson.primitive.HashIntMap;
+import io.github.joealisson.primitive.IntMap;
 import org.l2j.commons.util.PropertiesParser;
 import org.l2j.gameserver.Config;
+import org.l2j.gameserver.data.database.dao.SiegeDAO;
 import org.l2j.gameserver.engine.skill.api.SkillEngine;
 import org.l2j.gameserver.model.Clan;
 import org.l2j.gameserver.model.Location;
@@ -32,10 +34,9 @@ import org.l2j.gameserver.model.interfaces.ILocational;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.*;
+
+import static org.l2j.commons.database.DatabaseAccess.getDAO;
 
 /**
  * @author JoeAlisson
@@ -43,8 +44,8 @@ import java.util.*;
 public final class SiegeManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SiegeManager.class);
 
-    private final Map<Integer, List<TowerSpawn>> _controlTowers = new HashMap<>();
-    private final Map<Integer, List<TowerSpawn>> _flameTowers = new HashMap<>();
+    private final IntMap<List<TowerSpawn>> _controlTowers = new HashIntMap<>();
+    private final IntMap<List<TowerSpawn>> _flameTowers = new HashIntMap<>();
 
     private int _attackerMaxClans = 500; // Max number of clans
     private int _attackerRespawnDelay = 0; // Time in ms. Changeable in siege.config
@@ -55,7 +56,6 @@ public final class SiegeManager {
     private int _bloodAllianceReward = 0; // Number of Blood Alliance items reward for successful castle defending
 
     private SiegeManager() {
-        load();
     }
 
     public final void addSiegeSkills(Player player) {
@@ -63,7 +63,7 @@ public final class SiegeManager {
 
     }
 
-    public final boolean checkIsRegistered(Clan clan, int castleid) {
+    public final boolean checkIsRegistered(Clan clan, int castleId) {
         if (clan == null) {
             return false;
         }
@@ -72,20 +72,7 @@ public final class SiegeManager {
             return true;
         }
 
-        boolean register = false;
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement statement = con.prepareStatement("SELECT clan_id FROM siege_clans where clan_id=? and castle_id=?")) {
-            statement.setInt(1, clan.getId());
-            statement.setInt(2, castleid);
-            try (ResultSet rs = statement.executeQuery()) {
-                if (rs.next()) {
-                    register = true;
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn(getClass().getSimpleName() + ": Exception: checkIsRegistered(): " + e.getMessage(), e);
-        }
-        return register;
+        return getDAO(SiegeDAO.class).isRegistered(clan.getId(), castleId);
     }
 
     public final void removeSiegeSkills(Player player) {
@@ -207,17 +194,14 @@ public final class SiegeManager {
     }
 
     private void loadTrapUpgrade(int castleId) {
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement ps = con.prepareStatement("SELECT * FROM castle_trap_upgrade WHERE castle_id=?")) {
-            ps.setInt(1, castleId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    _flameTowers.get(castleId).get(rs.getInt("towerIndex")).setUpgradeLevel(rs.getInt("level"));
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Exception: loadTrapUpgrade(): " + e.getMessage(), e);
+        for (var data : getDAO(SiegeDAO.class).loadTrapsUpgrade(castleId)) {
+            _flameTowers.get(castleId).get(data.getKey()).setUpgradeLevel(data.getValue());
         }
+    }
+
+    public static void init() {
+        getInstance().load();
+        getInstance().getSieges();
     }
 
     public static SiegeManager getInstance() {

@@ -18,14 +18,17 @@
  */
 package org.l2j.gameserver.data.xml.impl;
 
+import io.github.joealisson.primitive.HashIntMap;
+import io.github.joealisson.primitive.IntMap;
+import org.l2j.gameserver.data.database.data.MacroCmdData;
+import org.l2j.gameserver.data.database.data.MacroData;
 import org.l2j.gameserver.data.database.data.Shortcut;
 import org.l2j.gameserver.enums.MacroType;
 import org.l2j.gameserver.enums.ShortcutType;
 import org.l2j.gameserver.model.Macro;
-import org.l2j.gameserver.model.MacroCmd;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.model.base.ClassId;
-import org.l2j.gameserver.model.item.instance.Item;
+import org.l2j.gameserver.engine.item.Item;
 import org.l2j.gameserver.network.serverpackets.ShortCutRegister;
 import org.l2j.gameserver.settings.ServerSettings;
 import org.l2j.gameserver.util.GameXmlReader;
@@ -38,7 +41,7 @@ import org.w3c.dom.Node;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
@@ -55,9 +58,9 @@ import static org.l2j.commons.configuration.Configurator.getSettings;
 public final class InitialShortcutData extends GameXmlReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(InitialShortcutData.class);
 
-    private final Map<ClassId, List<Shortcut>> _initialShortcutData = new HashMap<>();
+    private final Map<ClassId, List<Shortcut>> _initialShortcutData = new EnumMap<>(ClassId.class);
     private final List<Shortcut> _initialGlobalShortcutList = new ArrayList<>();
-    private final Map<Integer, Macro> _macroPresets = new HashMap<>();
+    private final IntMap<Macro> _macroPresets = new HashIntMap<>();
 
     private InitialShortcutData() {
         load();
@@ -101,11 +104,6 @@ public final class InitialShortcutData extends GameXmlReader {
         }
     }
 
-    /**
-     * Parses a shortcut.
-     *
-     * @param d the node
-     */
     private void parseShortcuts(Node d) {
         NamedNodeMap attrs = d.getAttributes();
         final Node classIdNode = attrs.getNamedItem("classId");
@@ -113,7 +111,7 @@ public final class InitialShortcutData extends GameXmlReader {
         for (Node c = d.getFirstChild(); c != null; c = c.getNextSibling()) {
             if ("page".equals(c.getNodeName())) {
                 attrs = c.getAttributes();
-                final int pageId = parseInteger(attrs, "pageId");
+                final int pageId = parseInt(attrs, "pageId");
                 for (Node b = c.getFirstChild(); b != null; b = b.getNextSibling()) {
                     if ("slot".equals(b.getNodeName())) {
                         list.add(createShortcut(pageId, b));
@@ -129,11 +127,6 @@ public final class InitialShortcutData extends GameXmlReader {
         }
     }
 
-    /**
-     * Parses a macro.
-     *
-     * @param d the node
-     */
     private void parseMacros(Node d) {
         for (Node c = d.getFirstChild(); c != null; c = c.getNextSibling()) {
             if ("macro".equals(c.getNodeName())) {
@@ -142,55 +135,49 @@ public final class InitialShortcutData extends GameXmlReader {
                     continue;
                 }
 
-                final int macroId = parseInteger(attrs, "macroId");
-                final int icon = parseInteger(attrs, "icon");
-                final String name = parseString(attrs, "name");
-                final String description = parseString(attrs, "description");
-                final String acronym = parseString(attrs, "acronym");
-                final List<MacroCmd> commands = new ArrayList<>(1);
+                final int macroId = parseInt(attrs, "macroId");
+
+                MacroData data = new MacroData();
+                data.setId(macroId);
+                data.setIcon( parseInt(attrs, "icon"));
+                data.setName(parseString(attrs, "name"));
+                data.setDescription(parseString(attrs, "description"));
+                data.setAcronym(parseString(attrs, "acronym"));
+
+                final List<MacroCmdData> commands = new ArrayList<>(1);
                 int entry = 0;
+
                 for (Node b = c.getFirstChild(); b != null; b = b.getNextSibling()) {
                     if ("command".equals(b.getNodeName())) {
+                        MacroCmdData cmdData = new MacroCmdData();
+                        cmdData.setMacroId(macroId);
                         attrs = b.getAttributes();
-                        final MacroType type = parseEnum(attrs, MacroType.class, "type");
-                        int d1 = 0;
-                        int d2 = 0;
-                        final String cmd = b.getTextContent();
-                        switch (type) {
-                            case SKILL: {
-                                d1 = parseInteger(attrs, "skillId"); // Skill ID
-                                d2 = parseInteger(attrs, "skillLvl", 0); // Skill level
-                                break;
-                            }
-                            case ACTION: {
-                                // Not handled by client.
-                                d1 = parseInteger(attrs, "actionId");
-                                break;
-                            }
-                            case TEXT: {
-                                // Doesn't have numeric parameters.
-                                break;
-                            }
-                            case SHORTCUT: {
-                                d1 = parseInteger(attrs, "page"); // Page
-                                d2 = parseInteger(attrs, "slot", 0); // Slot
-                                break;
-                            }
-                            case ITEM: {
-                                // Not handled by client.
-                                d1 = parseInteger(attrs, "itemId");
-                                break;
-                            }
-                            case DELAY: {
-                                d1 = parseInteger(attrs, "delay"); // Delay in seconds
-                                break;
-                            }
-                        }
-                        commands.add(new MacroCmd(entry++, type, d1, d2, cmd));
+                        cmdData.setType(parseEnum(attrs, MacroType.class, "type"));
+                        cmdData.setCommand(b.getTextContent());
+
+                        setDatas(attrs, cmdData);
+                        cmdData.setIndex(entry++);
+                        commands.add(cmdData);
                     }
                 }
-                _macroPresets.put(macroId, new Macro(macroId, icon, name, description, acronym, commands));
+                _macroPresets.put(macroId, new Macro(data, commands));
             }
+        }
+    }
+
+    private void setDatas(NamedNodeMap attrs, MacroCmdData cmdData) {
+        switch (cmdData.getType()) {
+            case SKILL -> {
+                cmdData.setData1(parseInt(attrs, "skillId")); // Skill ID
+                cmdData.setData2(parseInt(attrs, "skillLvl", 0)); // Skill level
+            }
+            case SHORTCUT -> {
+                cmdData.setData1(parseInt(attrs, "page"));
+                cmdData.setData2(parseInt(attrs, "slot", 0));
+            }
+            case ACTION -> cmdData.setData1(parseInt(attrs, "actionId"));
+            case ITEM -> cmdData.setData1(parseInt(attrs, "itemId"));
+            case DELAY -> cmdData.setData1(parseInt(attrs, "delay"));
         }
     }
 
@@ -203,41 +190,12 @@ public final class InitialShortcutData extends GameXmlReader {
      */
     private Shortcut createShortcut(int pageId, Node b) {
         final NamedNodeMap attrs = b.getAttributes();
-        final int slotId = parseInteger(attrs, "slotId");
+        final int slotId = parseInt(attrs, "slotId");
         final ShortcutType shortcutType = parseEnum(attrs, ShortcutType.class, "shortcutType");
-        final int shortcutId = parseInteger(attrs, "shortcutId");
-        final int shortcutLevel = parseInteger(attrs, "shortcutLevel", 0);
-        final int characterType = parseInteger(attrs, "characterType", 0);
+        final int shortcutId = parseInt(attrs, "shortcutId");
+        final int shortcutLevel = parseInt(attrs, "shortcutLevel", 0);
+        final int characterType = parseInt(attrs, "characterType", 0);
         return new Shortcut(Shortcut.pageAndSlotToClientId(pageId, slotId), shortcutType, shortcutId, shortcutLevel, 0, characterType);
-    }
-
-    /**
-     * Gets the shortcut list.
-     *
-     * @param cId the class ID for the shortcut list
-     * @return the shortcut list for the give class ID
-     */
-    public List<Shortcut> getShortcutList(ClassId cId) {
-        return _initialShortcutData.get(cId);
-    }
-
-    /**
-     * Gets the shortcut list.
-     *
-     * @param cId the class ID for the shortcut list
-     * @return the shortcut list for the give class ID
-     */
-    public List<Shortcut> getShortcutList(int cId) {
-        return _initialShortcutData.get(ClassId.getClassId(cId));
-    }
-
-    /**
-     * Gets the global shortcut list.
-     *
-     * @return the global shortcut list
-     */
-    public List<Shortcut> getGlobalMacroList() {
-        return _initialGlobalShortcutList;
     }
 
     /**

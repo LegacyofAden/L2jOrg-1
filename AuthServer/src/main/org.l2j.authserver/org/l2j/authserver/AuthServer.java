@@ -28,6 +28,7 @@ import org.l2j.authserver.network.client.AuthPacketHandler;
 import org.l2j.authserver.network.gameserver.GameServerPacketHandler;
 import org.l2j.authserver.network.gameserver.ServerClient;
 import org.l2j.commons.cache.CacheFactory;
+import org.l2j.commons.database.DatabaseAccess;
 import org.l2j.commons.threading.ThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +62,6 @@ public class AuthServer {
         serverConnectionHandler.start();
         logger.info("Listening for GameServers on {}", bindServerListen);
 
-
         var bindAddress = listenHost().equals("*") ? new InetSocketAddress(listenPort()) : new InetSocketAddress(listenHost(), listenPort()) ;
         final AuthPacketHandler lph = new AuthPacketHandler();
         final ConnectionHelper sh = new ConnectionHelper();
@@ -75,13 +75,13 @@ public class AuthServer {
         connectionHandler.shutdown();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         configureLogger();
         configureCaches();
         configureDatabase();
         configureNetworkPackets();  
         var processors = Runtime.getRuntime().availableProcessors();
-        ThreadPool.init(processors, Math.max(1, processors/2));
+        ThreadPool.init(processors, Math.max(1, processors/2), 50);
         try {
             _instance = new AuthServer();
             getRuntime().addShutdownHook(new Thread(() -> _instance.shutdown()));
@@ -98,8 +98,11 @@ public class AuthServer {
         System.setProperty("async-mmocore.configurationFile", "config/async-mmocore.properties");
     }
 
-    private static void configureDatabase() {
+    private static void configureDatabase() throws Exception {
         System.setProperty(HIKARICP_CONFIGURATION_FILE, "config/database.properties");
+        if (!DatabaseAccess.initialize()) {
+            throw new Exception("Database Access could not be initialized");
+        }
     }
 
     private static void configureLogger() {

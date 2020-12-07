@@ -49,7 +49,7 @@ import static java.util.Objects.nonNull;
  */
 public abstract class XmlReader extends XmlParser {
 
-    private static Logger LOGGER = LoggerFactory.getLogger(XmlReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(XmlReader.class);
 
     private DocumentBuilder documentBuilder;
 
@@ -65,6 +65,8 @@ public abstract class XmlReader extends XmlParser {
             factory.setNamespaceAware(true);
             factory.setIgnoringComments(true);
             factory.setIgnoringElementContentWhitespace(true);
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             if(nonNull(schema)) {
                 factory.setSchema(schema);
             } else {
@@ -74,7 +76,7 @@ public abstract class XmlReader extends XmlParser {
             documentBuilder = factory.newDocumentBuilder();
             documentBuilder.setErrorHandler(new XMLErrorHandler());
         } catch (ParserConfigurationException e) {
-            LOGGER.error(e.getLocalizedMessage(), e);
+            LOGGER.error(e.getMessage(), e);
         }
     }
 
@@ -92,7 +94,7 @@ public abstract class XmlReader extends XmlParser {
                 LOGGER.warn("Schema Validation disabled, the path {} is not a file", path);
             }
         } catch (SAXException e) {
-            LOGGER.error(e.getLocalizedMessage(), e);
+            LOGGER.error(e.getMessage(), e);
         }
         return null;
     }
@@ -116,17 +118,12 @@ public abstract class XmlReader extends XmlParser {
             parseDocument(documentBuilder.parse(file), file);
         }
         catch (SAXParseException e) {
-            LOGGER.warn("Could not parse file: " + file.getName()+ " at line: " + e.getLineNumber() + ", column: " + e.getColumnNumber() + " :", e);
+            LOGGER.warn("Could not parse file: {} at line: {}, column: {} ", file.getName(), e.getLineNumber(), e.getColumnNumber(), e);
         }
         catch (Exception e)
         {
-            LOGGER.warn("Could not parse file: " + file.getName(), e);
+            LOGGER.warn("Could not parse file {}", file.getName(), e);
         }
-    }
-
-
-    boolean parseDirectory(File file) {
-        return parseDirectory(file, false);
     }
 
     /**
@@ -154,11 +151,6 @@ public abstract class XmlReader extends XmlParser {
         return true;
     }
 
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
-    }
-
     /**
      * Executes action for each child of node
      */
@@ -170,22 +162,18 @@ public abstract class XmlReader extends XmlParser {
     /**
      * Executes action for each child that matches nodeName
      */
-    protected void forEach(Node node, String nodeName, Consumer<Node> action)
-    {
+    protected void forEach(Node node, String nodeName, Consumer<Node> action) {
         forEach(node, innerNode -> nodeName.equalsIgnoreCase(innerNode.getNodeName()), action);
     }
 
     /**
      * Executes action for each child of node if matches the filter specified
      */
-    protected void forEach(Node node, Predicate<Node> filter, Consumer<Node> action)
-    {
+    protected void forEach(Node node, Predicate<Node> filter, Consumer<Node> action) {
         final NodeList list = node.getChildNodes();
-        for (int i = 0; i < list.getLength(); i++)
-        {
+        for (int i = 0; i < list.getLength(); i++) {
             final Node targetNode = list.item(i);
-            if (filter.test(targetNode))
-            {
+            if (filter.test(targetNode)) {
                 action.accept(targetNode);
             }
         }

@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets.classchange;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
@@ -26,7 +26,7 @@ import org.l2j.gameserver.network.serverpackets.ServerPacket;
 /**
  * @author Mobius
  */
-@StaticPacket
+
 public class ExRequestClassChangeUi extends ServerPacket {
 
     public static final ExRequestClassChangeUi STATIC_PACKET = new ExRequestClassChangeUi();
@@ -35,7 +35,7 @@ public class ExRequestClassChangeUi extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_CLASS_CHANGE_SET_ALARM);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_CLASS_CHANGE_SET_ALARM, buffer );
     }
 }

@@ -38,7 +38,7 @@ public interface PlayerDAO extends DAO<PlayerData> {
     void setAllCharactersOffline();
 
     @Query("SELECT * FROM characters WHERE account_name = :account: ORDER BY createDate")
-    List<PlayerData> findAllCharactersByAccount(String account);
+    List<PlayerData> findPlayersByAccount(String account);
 
     @Query("SELECT * FROM characters WHERE charId = :objectId:")
     PlayerData findById(int objectId);
@@ -48,9 +48,6 @@ public interface PlayerDAO extends DAO<PlayerData> {
 
     @Query("UPDATE characters SET clanid=0, clan_privs=0, wantspeace=0, subpledge=0, title='', lvl_joined_academy=0, apprentice=0, sponsor=0, clan_join_expiry_time=:clanJoinExpiryTime:, clan_create_expiry_time=:clanCreateExpiryTime: WHERE charId = :playerId:")
     void deleteClanInfoOfMember(int playerId, long clanJoinExpiryTime, long clanCreateExpiryTime);
-
-    @Query("DELETE FROM character_instance_time WHERE time <= :timestamp:")
-    void deleteExpiredInstances(long timestamp);
 
     @Query("DELETE FROM character_skills_save WHERE restore_type = 1 AND systime <= :timestamp:")
     void deleteExpiredSavedSkills(long timestamp);
@@ -171,4 +168,61 @@ public interface PlayerDAO extends DAO<PlayerData> {
 
     @Query("UPDATE characters SET deletetime=:deleteTime: WHERE charId=:playerId:")
     void updateDeleteTime(int playerId, long deleteTime);
+
+    @Query("DELETE FROM character_skills_save WHERE skill_id=:skillId:")
+    void deleteSkillSave(int skillId);
+
+    @Query("UPDATE character_reco_bonus SET rec_left = 20, rec_have = GREATEST(CAST(rec_have AS SIGNED)  -20 , 0)")
+    void resetRecommends();
+
+    @Query("UPDATE characters SET vitality_points = :points:")
+    void resetVitality(int points);
+
+    @Query("DELETE FROM recipes WHERE player_id=:playerId: AND id=:recipeId:")
+    void deleteRecipe(int playerId, int recipeId);
+
+    @Query("SELECT id FROM recipes WHERE player_id=:playerId:")
+    IntSet findAllRecipes(int playerId);
+
+    @Query("INSERT INTO recipes (player_id, id) values(:playerId:,:id:)")
+    void addRecipe(int playerId, int id);
+
+    @Query("UPDATE characters SET online=:online:, lastAccess=:lastAccess: WHERE charId=:playerId:")
+    void updateOnlineStatus(int playerId, boolean online, long lastAccess);
+
+    @Query("DELETE FROM character_skills WHERE skill_id=:skillId: AND charId=:playerId:")
+    void deleteSkill(int playerId, int skillId);
+
+    @Query("DELETE FROM character_hennas WHERE charId=:playerId: AND slot=:slot:")
+    void deleteHenna(int playerId, int slot);
+
+    @Query("UPDATE character_tpbookmark SET icon=:icon:,tag=:tag:,name=:name: where charId=:playerId: AND Id=:id:")
+    void updateTeleportBookMark(int playerId, int id, int icon, String tag, String name);
+
+    @Query("DELETE FROM character_tpbookmark WHERE charId=:playerId: AND Id=:id:")
+    void deleteTeleportBookMark(int playerId, int id);
+
+    @Query("DELETE FROM character_recipeshoplist WHERE charId=:playerId:")
+    void deleteRecipeShop(int playerId);
+
+    @Query("UPDATE characters SET subpledge=:pledgeType: WHERE charId=:playerId:")
+    void updateSubpledge(int playerId, int pledgeType);
+
+    @Query("UPDATE characters SET power_grade=:powerGrade: WHERE charId=:playerId:")
+    void updatePowerGrade(int playerId, int powerGrade);
+
+    @Query("UPDATE characters SET apprentice=:apprentice:,sponsor=:sponsor: WHERE charId= :playerId:")
+    void updateApprenticeAndSponsor(int playerId, int apprentice, int sponsor);
+
+    @Query("DELETE FROM character_contacts WHERE charId =:playeId: and contactId = :contactId:")
+    void deleteContact(int playerId, int contactId);
+
+    @Query("INSERT INTO character_contacts (charId, contactId) VALUES (:playerId:, :contactId:)")
+    void addContact(int playerId, int contactId);
+
+    @Query("SELECT contactId FROM character_contacts WHERE charId = :objectId:")
+    void findContacts(int objectId, Consumer<ResultSet> resultSet);
+
+    @Query("DELETE FROM character_instance_time WHERE charId=:playerId: AND instanceId=:id:")
+    void deleteInstanceTime(int playerId, int id);
 }

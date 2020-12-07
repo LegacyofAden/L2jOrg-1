@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<event xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns="http://l2j.org" xsi:schemaLocation="http://l2j.org ../../../xsd/eventConfig.xsd"
+	   name="Looking for right words" start-date="2017-09-05" end-date="2017-10-03"
+	   start-message="Looking for right words: Event ongoing!"
+	   end-message="Looking for right words: Event end!" >
+
+	<drop>
+		<item id="3875" min="1" max="1" chance="3" /> <!-- Letter Collector's A -->
+		<item id="3876" min="1" max="1" chance="3" /> <!-- Letter Collector's C -->
+		<item id="3877" min="1" max="1" chance="3" /> <!-- Letter Collector's E -->
+		<item id="3879" min="1" max="1" chance="3" /> <!-- Letter Collector's G -->
+		<item id="3881" min="1" max="1" chance="3" /> <!-- Letter Collector's I -->
+		<item id="3882" min="1" max="1" chance="3" /> <!-- Letter Collector's L -->
+		<item id="3883" min="1" max="1" chance="3" /> <!-- Letter Collector's N -->
+		<item id="3885" min="1" max="1" chance="3" /> <!-- Letter Collector's R -->
+		<item id="34956" min="1" max="1" chance="3" /> <!-- Letter Collector's M -->
+		<item id="3884" min="1" max="1" chance="3" /> <!-- Letter Collector's O -->
+		<item id="3886" min="1" max="1" chance="3" /> <!-- Letter Collector's S -->
+		<item id="3880" min="1" max="1" chance="3" /> <!-- Letter Collector's H -->
+		<item id="3888" min="1" max="1" chance="3" /> <!-- Letter Collector's II -->
+	</drop>
+
+	<spawns>		
+		<spawn npc="9000" x="83330" y="149162" z="-3390" heading="46111" /> <!-- Giran -->
+		<spawn npc="9000" x="147784" y="25636" z="-1994" heading="11547" /> <!-- Aden -->
+	</spawns>
+</event>

@@ -18,11 +18,11 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
 
-@StaticPacket
+
 public class SunRise extends ServerPacket {
     public static final SunRise STATIC_PACKET = new SunRise();
 
@@ -30,8 +30,8 @@ public class SunRise extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.SUNRISE);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.SUNRISE, buffer );
     }
 
 }

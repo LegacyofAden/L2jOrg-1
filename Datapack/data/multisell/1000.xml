@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns="http://l2j.org"
+      xsi:schemaLocation="http://l2j.org multisell.xsd">
+    <item>
+        <ingredient id="93974"/>
+        <production id="93968" count="10" chance="100"/>
+    </item>
+    <item>
+        <ingredient id="93974"/>
+        <production id="93969" chance="100"/>
+    </item>
+    <item>
+        <ingredient id="93974"/>
+        <production id="93970" chance="100"/>
+    </item>
+    <item>
+        <ingredient id="93974"/>
+        <production id="93971" chance="100"/>
+    </item>
+    <item>
+        <ingredient id="93974"/>
+        <production id="93972" chance="100"/>
+    </item>
+    <item>
+        <ingredient id="93974"/>
+        <production id="93973" chance="100"/>
+    </item>
+</list>

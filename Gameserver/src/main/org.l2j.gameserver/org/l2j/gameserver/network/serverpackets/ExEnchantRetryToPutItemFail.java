@@ -18,14 +18,14 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 
 /**
  * @author Sdw
  */
-@StaticPacket
+
 public class ExEnchantRetryToPutItemFail extends ServerPacket {
     public static final ExEnchantRetryToPutItemFail STATIC_PACKET = new ExEnchantRetryToPutItemFail();
 
@@ -33,8 +33,8 @@ public class ExEnchantRetryToPutItemFail extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_ENCHANT_RETRY_TO_PUT_ITEMS_FAIL);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_ENCHANT_RETRY_TO_PUT_ITEMS_FAIL, buffer );
     }
 
 }

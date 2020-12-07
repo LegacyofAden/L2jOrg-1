@@ -30,9 +30,11 @@ import org.l2j.gameserver.taskmanager.RandomAnimationTaskManager;
 import org.l2j.gameserver.util.MathUtil;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -56,6 +58,7 @@ public final class WorldRegion {
     private WorldRegion[] surroundingRegions;
     private ScheduledFuture<?> neighborsTask = null;
     private boolean active;
+    private final AtomicInteger playersInside = new AtomicInteger(0);
 
     WorldRegion(int regionX, int regionY) {
         this.regionX = regionX;
@@ -67,10 +70,9 @@ public final class WorldRegion {
             return;
         }
 
-        objects.put(object.getObjectId(), object);
-
-        if (isPlayable(object)) {
+        if (isNull(objects.put(object.getObjectId(), object)) && isPlayer(object)) {
             // If this is the first player to enter the region, activate self and neighbors.
+            playersInside.getAndIncrement();
             if (!active && (!Config.GRIDS_ALWAYS_ON)) {
                 startActivation();
             }
@@ -82,7 +84,6 @@ public final class WorldRegion {
      */
     private void startActivation() {
         setActive(true);
-
         startNeighborsTask(true, Config.GRID_NEIGHBOR_TURNON_TIME);
     }
 
@@ -102,39 +103,37 @@ public final class WorldRegion {
         }
 
         if (!active) {
-            for (WorldObject o : objects.values()) {
-                if (isAttackable(o)) {
-                    final Attackable mob = (Attackable) o;
-
+            for (WorldObject object : objects.values()) {
+                if (object instanceof Attackable attackable) {
                     // Set target to null and cancel attack or cast.
-                    mob.setTarget(null);
+                    attackable.setTarget(null);
 
                     // Stop movement.
-                    mob.stopMove(null);
+                    attackable.stopMove(null);
 
                     // Stop all active skills effects in progress on the Creature.
-                    mob.stopAllEffects();
+                    attackable.stopAllEffects();
 
-                    mob.clearAggroList();
-                    mob.getAttackByList().clear();
+                    attackable.clearAggroList();
+                    attackable.getAttackByList().clear();
 
                     // Stop the AI tasks.
-                    if (mob.hasAI()) {
-                        mob.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
-                        mob.getAI().stopAITask();
+                    if (attackable.hasAI()) {
+                        attackable.getAI().setIntention(CtrlIntention.AI_INTENTION_IDLE);
+                        attackable.getAI().stopAITask();
                     }
-                    RandomAnimationTaskManager.getInstance().remove(mob);
-                } else if (isNpc(o)) {
-                    RandomAnimationTaskManager.getInstance().remove((Npc) o);
+                    RandomAnimationTaskManager.getInstance().remove(attackable);
+                } else if (isNpc(object)) {
+                    RandomAnimationTaskManager.getInstance().remove((Npc) object);
                 }
             }
         } else {
-            for (WorldObject o : objects.values()) {
-                if (isAttackable(o)) {
-                    // Start HP/MP/CP regeneration task.
-                    ((Attackable) o).getStatus().startHpMpRegeneration();
-                } else if (isNpc(o)) {
-                    RandomAnimationTaskManager.getInstance().add((Npc) o);
+            for (WorldObject object : objects.values()) {
+                if (object instanceof Attackable attackable) {
+                    attackable.getAI().setIntention(CtrlIntention.AI_INTENTION_ACTIVE);
+                    RandomAnimationTaskManager.getInstance().add(attackable);
+                } else if (isNpc(object)) {
+                    RandomAnimationTaskManager.getInstance().add((Npc) object);
                 }
             }
         }
@@ -161,9 +160,8 @@ public final class WorldRegion {
             return;
         }
 
-        objects.remove(object.getObjectId());
-
-        if (isPlayable(object)) {
+        if (nonNull(objects.remove(object.getObjectId())) && isPlayer(object)) {
+            playersInside.getAndDecrement();
             if (areNeighborsEmpty() && !Config.GRIDS_ALWAYS_ON) {
                 startDeactivation();
             }
@@ -171,38 +169,38 @@ public final class WorldRegion {
     }
 
     private boolean areNeighborsEmpty() {
-        return checkEachSurrounding(Predicate.not(WorldRegion::isActive));
-    }
-
-    private boolean checkEachSurrounding(Predicate<WorldRegion> p) {
-        for (WorldRegion worldRegion : surroundingRegions) {
-            if (!p.test(worldRegion)) {
+        for (WorldRegion region : surroundingRegions) {
+            if(region.isActive() && region.playersInside.get() > 0) {
                 return false;
             }
         }
         return true;
     }
 
-    void forEachSurroundingRegion(Consumer<WorldRegion> action) {
-        Arrays.stream(surroundingRegions).forEach(action);
-    }
-
-    <T extends WorldObject> void forEachObject(Class<T> clazz, Consumer<T> action, Predicate<T> filter) {
-        regionToWorldObjectStream().filter(applyInstanceFilter(clazz, filter)).map(clazz::cast).forEach(action);
-    }
-
     <T extends WorldObject> void forEachObjectInSurrounding(Class<T> clazz, Consumer<T> action, Predicate<T> filter) {
-        filteredParallelSurroundingObjects(clazz, filter).forEach(action);
-    }
-
-    private <T extends WorldObject> Stream<T> filteredParallelSurroundingObjects(Class<T> clazz, Predicate<T> filter) {
-        return Arrays.stream(surroundingRegions)
-                .flatMap(WorldRegion::regionToWorldObjectStream)
-                .filter(applyInstanceFilter(clazz, filter)).map(clazz::cast);
+        T casted;
+        for (WorldRegion region : surroundingRegions) {
+            for (WorldObject object : region.objects.values()) {
+                if(clazz.isInstance(object) && filter.test(casted = clazz.cast(object) )){
+                    action.accept(casted);
+                }
+            }
+        }
     }
 
     <T extends WorldObject> void forEachObjectInSurroundingLimiting(Class<T> clazz, int limit, Predicate<T> filter, Consumer<T> action) {
-        filteredParallelSurroundingObjects(clazz, filter).limit(limit).forEach(action);
+        T casted;
+        int accepted = 0;
+        for (WorldRegion region : surroundingRegions) {
+            for (WorldObject object : region.objects.values()) {
+                if(clazz.isInstance(object) && filter.test(casted = clazz.cast(object) )){
+                    action.accept(casted);
+                    if(++accepted > limit) {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     <T extends WorldObject> void forEachOrderedObjectInSurrounding(Class<T> clazz, int maxObjects, Comparator<T> comparator, Predicate<T> filter, Consumer<? super T> action) {
@@ -210,11 +208,18 @@ public final class WorldRegion {
     }
 
     private <T extends WorldObject> Stream<T> filteredSurroundingObjects(Class<T> clazz, Predicate<T> filter) {
-        return Arrays.stream(surroundingRegions).flatMap(r -> r.objects.values().stream()).filter(applyInstanceFilter(clazz, filter)).map(clazz::cast);
+        return Arrays.stream(surroundingRegions).flatMap(r -> r.objects.values().stream()).filter(o -> applyInstanceFilter(o, clazz, filter)).map(clazz::cast);
     }
 
     <T extends WorldObject> void forAnyObjectInSurrounding(Class<T> clazz, Consumer<T> action, Predicate<T> filter) {
-        filteredSurroundingObjects(clazz, filter).findAny().ifPresent(action);
+        for (WorldRegion region : surroundingRegions) {
+            for (WorldObject object : region.objects.values()) {
+                if(applyInstanceFilter(object, clazz, filter)) {
+                    action.accept(clazz.cast(object));
+                    return;
+                }
+            }
+        }
     }
 
     WorldObject findObjectInSurrounding(WorldObject reference, int objectId, int range) {
@@ -235,7 +240,14 @@ public final class WorldRegion {
     }
 
     <T extends WorldObject> T findAnyObjectInSurrounding(Class<T> clazz, Predicate<T> filter) {
-        return  filteredSurroundingObjects(clazz, filter).findAny().orElse(null);
+        for (WorldRegion region : surroundingRegions) {
+            for (WorldObject object : region.objects.values()) {
+                if(applyInstanceFilter(object, clazz, filter)) {
+                    return clazz.cast(object);
+                }
+            }
+        }
+        return null;
     }
 
     <T extends WorldObject> T findFirstObjectInSurrounding(Class<T> clazz, Predicate<T> filter, Comparator<T> comparator) {
@@ -243,7 +255,14 @@ public final class WorldRegion {
     }
 
     <T extends WorldObject> boolean hasObjectInSurrounding(Class<T> clazz, Predicate<T> filter) {
-        return Arrays.stream(surroundingRegions).flatMap(r -> r.objects.values().stream()).anyMatch(applyInstanceFilter(clazz, filter));
+        for (WorldRegion region : surroundingRegions) {
+            for (WorldObject object : region.objects.values()) {
+                if(applyInstanceFilter(object, clazz, filter)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     WorldObject getObject(int objectId) {
@@ -280,12 +299,8 @@ public final class WorldRegion {
     }
 
 
-    private static <T extends WorldObject> Predicate<? super WorldObject> applyInstanceFilter(Class<T> clazz, Predicate<T> filter) {
-        return object -> clazz.isInstance(object) && filter.test(clazz.cast(object));
-    }
-
-    private Stream<? extends WorldObject> regionToWorldObjectStream() {
-        return objects.values().parallelStream();
+    private static <T extends WorldObject> boolean applyInstanceFilter(WorldObject object, Class<T> clazz, Predicate<T> filter) {
+        return clazz.isInstance(object) && filter.test(clazz.cast(object));
     }
 
     @Override
@@ -293,9 +308,22 @@ public final class WorldRegion {
         return "[" + regionX + ", " + regionY + "]";
     }
 
-    /**
-     * Task of AI notification
-     */
+    WorldRegion[] surroundingRegions() {
+        return surroundingRegions;
+    }
+
+    Collection<WorldObject> objects() {
+        return objects.values();
+    }
+
+    public int getPlayersCountInSurround() {
+        int playersCount = 0;
+        for (WorldRegion surroundingRegion : surroundingRegions) {
+            playersCount += surroundingRegion.playersInside.get();
+        }
+        return playersCount;
+    }
+
     private class NeighborsTask implements Runnable {
         private final boolean isActivating;
 
@@ -305,11 +333,11 @@ public final class WorldRegion {
 
         @Override
         public void run() {
-            forEachSurroundingRegion(w -> {
-                if (isActivating || w.areNeighborsEmpty()) {
-                    w.setActive(isActivating);
+            for (WorldRegion region : surroundingRegions) {
+                if(isActivating || region.areNeighborsEmpty()) {
+                    region.setActive(isActivating);
                 }
-            });
+            }
         }
     }
 }

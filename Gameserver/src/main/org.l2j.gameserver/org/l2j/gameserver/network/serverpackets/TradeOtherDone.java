@@ -18,11 +18,11 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
 
-@StaticPacket
+
 public class TradeOtherDone extends ServerPacket {
     public static final TradeOtherDone STATIC_PACKET = new TradeOtherDone();
 
@@ -30,8 +30,8 @@ public class TradeOtherDone extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.TRADE_PRESS_OTHER_OK);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.TRADE_PRESS_OTHER_OK, buffer );
     }
 
 }

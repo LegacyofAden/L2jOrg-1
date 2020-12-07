@@ -31,8 +31,6 @@ import org.l2j.gameserver.model.events.impl.item.OnItemBypassEvent;
 import org.l2j.gameserver.model.events.impl.item.OnItemCreate;
 import org.l2j.gameserver.model.events.impl.item.OnItemTalk;
 import org.l2j.gameserver.model.events.impl.olympiad.OnOlympiadMatchResult;
-import org.l2j.gameserver.model.events.impl.server.OnPacketReceived;
-import org.l2j.gameserver.model.events.impl.server.OnPacketSent;
 import org.l2j.gameserver.model.events.impl.sieges.OnCastleSiegeFinish;
 import org.l2j.gameserver.model.events.impl.sieges.OnCastleSiegeOwnerChange;
 import org.l2j.gameserver.model.events.impl.sieges.OnCastleSiegeStart;
@@ -114,7 +112,6 @@ public enum EventType {
     ON_PLAYER_CHAT(OnPlayerChat.class, void.class, ChatFilterReturn.class),
     ON_PLAYER_ABILITY_POINTS_CHANGED(OnPlayerAbilityPointsChanged.class, void.class),
     ON_PLAYER_CP_CHANGE(OnPlayerCpChange.class, void.class),
-    ON_PLAYER_HP_CHANGE(OnPlayerHpChange.class, void.class),
     ON_PLAYER_MP_CHANGE(OnPlayerMpChange.class, void.class),
     // Clan events
     ON_PLAYER_CLAN_CREATE(OnPlayerClanCreate.class, void.class),
@@ -142,15 +139,13 @@ public enum EventType {
     ON_PLAYER_ITEM_DROP(OnPlayerItemDrop.class, void.class),
     ON_PLAYER_ITEM_PICKUP(OnPlayerItemPickup.class, void.class),
     ON_PLAYER_ITEM_TRANSFER(OnPlayerItemTransfer.class, void.class),
-    // Mentoring events
-    ON_PLAYER_MENTEE_ADD(OnPlayerMenteeAdd.class, void.class),
-    ON_PLAYER_MENTEE_LEFT(OnPlayerMenteeLeft.class, void.class),
-    ON_PLAYER_MENTEE_REMOVE(OnPlayerMenteeRemove.class, void.class),
-    ON_PLAYER_MENTEE_STATUS(OnPlayerMenteeStatus.class, void.class),
-    ON_PLAYER_MENTOR_STATUS(OnPlayerMentorStatus.class, void.class),
+
     // Other player events
     ON_PLAYER_REPUTATION_CHANGED(OnPlayerReputationChanged.class, void.class),
     ON_PLAYER_LEVEL_CHANGED(OnPlayerLevelChanged.class, void.class),
+    ON_PLAYER_RESTORE(OnPlayerRestore.class, void.class),
+    ON_PLAYER_SELECT(OnPlayerSelect.class, void.class, TerminateReturn.class),
+    ON_PLAYER_LOAD(OnPlayerLoad.class, void.class),
     ON_PLAYER_LOGIN(OnPlayerLogin.class, void.class),
     ON_PLAYER_LOGOUT(OnPlayerLogout.class, void.class),
     ON_PLAYER_PK_CHANGED(OnPlayerPKChanged.class, void.class),
@@ -162,8 +157,6 @@ public enum EventType {
     ON_PLAYER_CHANGE_TO_AWAKENED_CLASS(OnPlayerChangeToAwakenedClass.class, void.class),
     ON_PLAYER_PVP_CHANGED(OnPlayerPvPChanged.class, void.class),
     ON_PLAYER_PVP_KILL(OnPlayerPvPKill.class, void.class),
-    ON_PLAYER_RESTORE(OnPlayerRestore.class, void.class),
-    ON_PLAYER_SELECT(OnPlayerSelect.class, void.class, TerminateReturn.class),
     ON_PLAYER_SOCIAL_ACTION(OnPlayerSocialAction.class, void.class),
     ON_PLAYER_SKILL_LEARN(OnPlayerSkillLearn.class, void.class),
     ON_PLAYER_SUMMON_SPAWN(OnPlayerSummonSpawn.class, void.class),
@@ -182,9 +175,6 @@ public enum EventType {
     ON_TRAP_ACTION(OnTrapAction.class, void.class),
 
     ON_DAY_NIGHT_CHANGE(OnDayNightChange.class, void.class),
-
-    ON_PACKET_RECEIVED(OnPacketReceived.class, void.class),
-    ON_PACKET_SENT(OnPacketSent.class, void.class),
 
     // Instance events
     ON_INSTANCE_CREATED(OnInstanceCreated.class, void.class),

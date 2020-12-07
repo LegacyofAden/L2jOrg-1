@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets.ensoul;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
@@ -26,7 +26,7 @@ import org.l2j.gameserver.network.serverpackets.ServerPacket;
 /**
  * @author Mobius
  */
-@StaticPacket
+
 public class ExShowEnsoulExtractionWindow extends ServerPacket {
     public static final ExShowEnsoulExtractionWindow STATIC_PACKET = new ExShowEnsoulExtractionWindow();
 
@@ -34,8 +34,8 @@ public class ExShowEnsoulExtractionWindow extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_SHOW_ENSOUL_EXTRACTION_WINDOW);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_SHOW_ENSOUL_EXTRACTION_WINDOW, buffer );
     }
 
 }

@@ -18,6 +18,7 @@
  */
 package org.l2j.authserver.network.client.packet.auth2client;
 
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.authserver.controller.GameServerManager;
 import org.l2j.authserver.network.client.AuthClient;
 import org.l2j.authserver.network.client.packet.AuthServerPacket;
@@ -54,38 +55,41 @@ public final class ServerList extends AuthServerPacket {
     }
 
     @Override
-    public void writeImpl(AuthClient client) {
+    public void writeImpl(AuthClient client, WritableBuffer buffer) {
         var servers = GameServerManager.getInstance().getRegisteredGameServers();
-        writeByte((byte)0x04);
-        writeByte((byte)servers.size());
-        writeByte((byte)client.getLastServer());
+        buffer.writeByte(0x04);
+        buffer.writeByte(servers.size());
+        buffer.writeByte(client.getLastServer());
 
         for (var server : servers.values()) {
-            writeByte((byte)server.getId());
+            buffer.writeByte(server.getId());
 
             byte[] address = server.getAddressFor(client.getHostAddress());
 
-            writeBytes(address);
-            writeInt(server.getPort());
-            writeByte(server.getAgeLimit()); // minimum age
-            writeByte(server.isPvp());
-            writeShort((short) server.getOnlinePlayersCount());
-            writeShort((short) server.getMaxPlayers());
+            buffer.writeBytes(address);
+            buffer.writeInt(server.getPort());
+            buffer.writeByte(server.getAgeLimit()); // minimum age
+            buffer.writeByte(server.isPvp());
+            buffer.writeShort(server.getOnlinePlayersCount());
+            buffer.writeShort(server.getMaxPlayers());
 
             var status = server.getStatus();
             if(ServerStatus.STATUS_GM_ONLY == status && client.getAccessLevel() < getSettings(AuthServerSettings.class).gmMinimumLevel()) {
                 status = ServerStatus.STATUS_DOWN;
             }
 
-            writeByte((byte) (ServerStatus.STATUS_DOWN == status ? 0x00 : 0x01));
-            writeInt(server.getServerType());
-            writeByte((byte) (server.isShowingBrackets() ? 0x01 : 0x00)); // Region
+            buffer.writeByte(ServerStatus.STATUS_DOWN != status);
+            buffer.writeInt(server.getServerType());
+            buffer.writeByte(server.isShowingBrackets()); // Region
         }
 
-        writeShort((short)0xa4);
+        buffer.writeShort(0xa4);
         for (var server : servers.values()) {
-            writeByte((byte)server.getId());
-            writeByte((byte)client.getPlayersOnServer(server.getId()));
+            buffer.writeByte(server.getId());
+            buffer.writeByte(client.getPlayersOnServer(server.getId()));
         }
     }
 }
+
+
+

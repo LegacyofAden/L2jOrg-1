@@ -18,18 +18,19 @@
  */
 package org.l2j.gameserver.model.item.container;
 
+import io.github.joealisson.primitive.CHashIntMap;
 import io.github.joealisson.primitive.IntCollection;
+import io.github.joealisson.primitive.IntMap;
 import org.l2j.commons.util.Util;
-import org.l2j.gameserver.Config;
 import org.l2j.gameserver.api.item.PlayerInventoryListener;
-import org.l2j.gameserver.data.database.dao.ItemDAO;
-import org.l2j.gameserver.data.database.data.ItemData;
+import org.l2j.gameserver.engine.item.ItemChangeType;
 import org.l2j.gameserver.engine.item.ItemEngine;
 import org.l2j.gameserver.enums.InventoryBlockType;
 import org.l2j.gameserver.enums.InventorySlot;
 import org.l2j.gameserver.enums.ItemLocation;
 import org.l2j.gameserver.model.TradeItem;
 import org.l2j.gameserver.model.TradeList;
+import org.l2j.gameserver.model.WorldObject;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.model.events.EventDispatcher;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerItemAdd;
@@ -38,19 +39,17 @@ import org.l2j.gameserver.model.events.impl.character.player.OnPlayerItemDrop;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerItemTransfer;
 import org.l2j.gameserver.model.item.CommonItem;
 import org.l2j.gameserver.model.item.ItemTemplate;
-import org.l2j.gameserver.model.item.instance.Item;
+import org.l2j.gameserver.engine.item.Item;
 import org.l2j.gameserver.model.item.type.WeaponType;
 import org.l2j.gameserver.network.SystemMessageId;
 import org.l2j.gameserver.network.serverpackets.InventoryUpdate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.l2j.gameserver.world.World;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
-import static org.l2j.commons.database.DatabaseAccess.getDAO;
 import static org.l2j.gameserver.model.item.type.EtcItemType.ARROW;
 import static org.l2j.gameserver.model.item.type.EtcItemType.BOLT;
 
@@ -58,14 +57,13 @@ import static org.l2j.gameserver.model.item.type.EtcItemType.BOLT;
  * @author JoeAlisson
  */
 public class PlayerInventory extends Inventory {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerInventory.class);
 
     private final Player owner;
+    private final IntMap<Item> questItems = new CHashIntMap<>();
     private Item _adena;
-    private Item _ancientAdena;
     private Item _beautyTickets;
     private Item silverCoin;
-    private Item rustyCoin;
+    private Item goldCoin;
     private Item l2Coin;
     private Item currentAmmunition;
 
@@ -75,23 +73,6 @@ public class PlayerInventory extends Inventory {
     public PlayerInventory(Player owner) {
         this.owner = owner;
         ServiceLoader.load(PlayerInventoryListener.class).forEach(this::addPaperdollListener);
-    }
-
-    public static int[][] restoreVisibleInventory(int objectId) {
-        final int[][] paperdoll = new int[InventorySlot.TOTAL_SLOTS][3];
-        try {
-            List<ItemData> paperDollItems = getDAO(ItemDAO.class).findAllPaperDollItemsByObjectId(objectId);
-            paperDollItems.forEach(paperDollItem -> {
-                final int slot = paperDollItem.getLocData();
-                paperdoll[slot][0] = paperDollItem.getObjectId();
-                paperdoll[slot][1] = paperDollItem.getItemId();
-                paperdoll[slot][2] = paperDollItem.getEnchantLevel();
-            });
-        } catch (Exception e) {
-            LOGGER.warn("Could not restore inventory: " + e.getMessage(), e);
-        }
-
-        return paperdoll;
     }
 
     @Override
@@ -118,14 +99,6 @@ public class PlayerInventory extends Inventory {
         return _adena != null ? _adena.getCount() : 0;
     }
 
-    public Item getAncientAdenaInstance() {
-        return _ancientAdena;
-    }
-
-    public long getAncientAdena() {
-        return (_ancientAdena != null) ? _ancientAdena.getCount() : 0;
-    }
-
     public Item getBeautyTicketsInstance() {
         return _beautyTickets;
     }
@@ -139,22 +112,20 @@ public class PlayerInventory extends Inventory {
      * Returns the list of items in inventory available for transaction
      * @return Item : items in inventory
      */
-    public Collection<Item> getUniqueItems(boolean allowAdena, boolean allowAncientAdena) {
-        return getUniqueItems(allowAdena, allowAncientAdena, true);
+    public Collection<Item> getUniqueItems(boolean allowAdena) {
+        return getUniqueItems(allowAdena, true);
     }
 
-    public Collection<Item> getUniqueItems(boolean allowAdena, boolean allowAncientAdena, boolean onlyAvailable) {
+    public Collection<Item> getUniqueItems(boolean allowAdena, boolean onlyAvailable) {
         final Collection<Item> list = new LinkedList<>();
         for (Item item : items.values()) {
             if (!allowAdena && (item.getId() == CommonItem.ADENA)) {
                 continue;
             }
-            if (!allowAncientAdena && (item.getId() == CommonItem.ANCIENT_ADENA)) {
-                continue;
-            }
+
             boolean isDuplicate = false;
-            for (Item litem : list) {
-                if (litem.getId() == item.getId()) {
+            for (Item i : list) {
+                if (i.getId() == item.getId()) {
                     isDuplicate = true;
                     break;
                 }
@@ -315,36 +286,6 @@ public class PlayerInventory extends Inventory {
     }
 
     /**
-     * Adds specified amount of ancient adena to player inventory.
-     *
-     * @param process   : String Identifier of process triggering this action
-     * @param count     : int Quantity of adena to be added
-     * @param actor     : Player Player requesting the item add
-     * @param reference : Object Object referencing current action like NPC selling item or previous item in transformation
-     */
-    public void addAncientAdena(String process, long count, Player actor, Object reference) {
-        if (count > 0) {
-            addItem(process,CommonItem.ANCIENT_ADENA, count, actor, reference);
-        }
-    }
-
-    /**
-     * Removes specified amount of ancient adena from player inventory.
-     *
-     * @param process   : String Identifier of process triggering this action
-     * @param count     : int Quantity of adena to be removed
-     * @param actor     : Player Player requesting the item add
-     * @param reference : Object Object referencing current action like NPC selling item or previous item in transformation
-     * @return boolean : true if adena was reduced
-     */
-    public boolean reduceAncientAdena(String process, long count, Player actor, Object reference) {
-        if (count > 0) {
-            return destroyItemByItemId(process, CommonItem.ANCIENT_ADENA, count, actor, reference) != null;
-        }
-        return false;
-    }
-
-    /**
      * Adds item in inventory and checks _adena and _ancientAdena
      *
      * @param process   : String Identifier of process triggering this action
@@ -356,37 +297,7 @@ public class PlayerInventory extends Inventory {
     @Override
     public Item addItem(String process, Item item, Player actor, Object reference) {
         item = super.addItem(process, item, actor, reference);
-
-        if (item != null) {
-            if ((item.getId() == CommonItem.ADENA) && !item.equals(_adena)) {
-                _adena = item;
-            } else if ((item.getId() == CommonItem.ANCIENT_ADENA) && !item.equals(_ancientAdena)) {
-                _ancientAdena = item;
-            } else if ((item.getId() == BEAUTY_TICKET_ID) && !item.equals(_beautyTickets)) {
-                _beautyTickets = item;
-            } else if( item.getId() == CommonItem.SILVER_COIN && !item.equals(silverCoin)) {
-                silverCoin = item;
-            } else if(item.getId() == CommonItem.RUSTY_COIN && !item.equals(rustyCoin)) {
-                rustyCoin = item;
-            }
-             else if(item.getId() == CommonItem.L2_COIN && !item.equals(l2Coin)) {
-                l2Coin = item;
-            }
-            if (actor != null) {
-                // Send inventory update packet
-                if (!Config.FORCE_INVENTORY_UPDATE) {
-                    final InventoryUpdate playerIU = new InventoryUpdate();
-                    playerIU.addItem(item);
-                    actor.sendInventoryUpdate(playerIU);
-                } else {
-                    actor.sendItemList();
-                }
-
-                // Notify to scripts
-                EventDispatcher.getInstance().notifyEventAsync(new OnPlayerItemAdd(actor, item), actor, item.getTemplate());
-            }
-        }
-
+        handleItemUpdate(actor, item, true);
         return item;
     }
 
@@ -418,32 +329,49 @@ public class PlayerInventory extends Inventory {
      */
     public Item addItem(String process, int itemId, long count, Player actor, Object reference, boolean update) {
         final Item item = super.addItem(process, itemId, count, actor, reference);
-        if (item != null) {
+        handleItemUpdate(actor, item, update);
+        return item;
+    }
+
+    private void handleItemUpdate(Player actor, Item item, boolean sendUpdate) {
+        if (nonNull(item)) {
             if ((item.getId() == CommonItem.ADENA) && !item.equals(_adena)) {
                 _adena = item;
-            } else if ((item.getId() == CommonItem.ANCIENT_ADENA) && !item.equals(_ancientAdena)) {
-                _ancientAdena = item;
             } else if ((item.getId() == BEAUTY_TICKET_ID) && !item.equals(_beautyTickets)) {
                 _beautyTickets = item;
             } else if (item.getId() == CommonItem.SILVER_COIN && !item.equals(silverCoin)) {
                 silverCoin = item;
-            } else if (item.getId() == CommonItem.RUSTY_COIN && !item.equals(rustyCoin)) {
-                rustyCoin = item;
+            } else if (item.getId() == CommonItem.GOLD_COIN && !item.equals(goldCoin)) {
+                goldCoin = item;
             } else if (item.getId() == CommonItem.L2_COIN && !item.equals(l2Coin)) {
                 l2Coin = item;
             }
-        }
 
-        if ((item != null) && (actor != null)) {
-            // Send inventory update packet
-            if (update) {
-                final InventoryUpdate playerIU = new InventoryUpdate();
-                playerIU.addItem(item);
-                actor.sendInventoryUpdate(playerIU);
+            if(nonNull(actor)) {
+                if(sendUpdate) {
+                    actor.sendInventoryUpdate(new InventoryUpdate(item));
+                }
+                // Notify to scripts
+                EventDispatcher.getInstance().notifyEventAsync(new OnPlayerItemAdd(actor, item), actor, item.getTemplate());
             }
+        }
+    }
 
-            // Notify to scripts
-            EventDispatcher.getInstance().notifyEventAsync(new OnPlayerItemAdd(actor, item), actor, item.getTemplate());
+    @Override
+    protected void addItem(Item item) {
+        if(item.isQuestItem()) {
+            questItems.put(item.getObjectId(), item);
+            itemIdLookup.putIfAbsent(item.getId(), item.getObjectId());
+        } else {
+            super.addItem(item);
+        }
+    }
+
+    @Override
+    public Item getItemByItemId(int itemId) {
+        var item = super.getItemByItemId(itemId);
+        if(isNull(item) && itemIdLookup.containsKey(itemId)) {
+            return questItems.get(itemIdLookup.get(itemId));
         }
         return item;
     }
@@ -465,10 +393,6 @@ public class PlayerInventory extends Inventory {
 
         if ((_adena != null) && ((_adena.getCount() <= 0) || (_adena.getOwnerId() != getOwnerId()))) {
             _adena = null;
-        }
-
-        if ((_ancientAdena != null) && ((_ancientAdena.getCount() <= 0) || (_ancientAdena.getOwnerId() != getOwnerId()))) {
-            _ancientAdena = null;
         }
 
         // Notify to scripts
@@ -517,10 +441,6 @@ public class PlayerInventory extends Inventory {
 
         if ((_adena != null) && (_adena.getCount() <= 0)) {
             _adena = null;
-        }
-
-        if ((_ancientAdena != null) && (_ancientAdena.getCount() <= 0)) {
-            _ancientAdena = null;
         }
 
         // Notify to scripts
@@ -581,21 +501,9 @@ public class PlayerInventory extends Inventory {
      * @return Item corresponding to the destroyed item or the updated item in inventory
      */
     @Override
-    public Item dropItem(String process, Item item, Player actor, Object reference) {
+    public Item dropItem(String process, Item item, Player actor, WorldObject reference) {
         item = super.dropItem(process, item, actor, reference);
-
-        if ((_adena != null) && ((_adena.getCount() <= 0) || (_adena.getOwnerId() != getOwnerId()))) {
-            _adena = null;
-        }
-
-        if ((_ancientAdena != null) && ((_ancientAdena.getCount() <= 0) || (_ancientAdena.getOwnerId() != getOwnerId()))) {
-            _ancientAdena = null;
-        }
-
-        // Notify to scripts
-        if (item != null) {
-            EventDispatcher.getInstance().notifyEventAsync(new OnPlayerItemDrop(actor, item, item.getLocation()), item.getTemplate());
-        }
+        handleDropItemUpdate(actor, item);
         return item;
     }
 
@@ -610,22 +518,22 @@ public class PlayerInventory extends Inventory {
      * @return Item corresponding to the destroyed item or the updated item in inventory
      */
     @Override
-    public Item dropItem(String process, int objectId, long count, Player actor, Object reference) {
+    public Item dropItem(String process, int objectId, long count, Player actor, WorldObject reference) {
         final Item item = super.dropItem(process, objectId, count, actor, reference);
 
+        handleDropItemUpdate(actor, item);
+        return item;
+    }
+
+    private void handleDropItemUpdate(Player actor, Item item) {
         if ((_adena != null) && ((_adena.getCount() <= 0) || (_adena.getOwnerId() != getOwnerId()))) {
             _adena = null;
-        }
-
-        if ((_ancientAdena != null) && ((_ancientAdena.getCount() <= 0) || (_ancientAdena.getOwnerId() != getOwnerId()))) {
-            _ancientAdena = null;
         }
 
         // Notify to scripts
         if (item != null) {
             EventDispatcher.getInstance().notifyEventAsync(new OnPlayerItemDrop(actor, item, item.getLocation()), item.getTemplate());
         }
-        return item;
     }
 
     /**
@@ -645,12 +553,18 @@ public class PlayerInventory extends Inventory {
 
         if (item.getId() == CommonItem.ADENA) {
             _adena = null;
-        } else if (item.getId() == CommonItem.ANCIENT_ADENA) {
-            _ancientAdena = null;
         } else if (item.getId() == BEAUTY_TICKET_ID) {
             _beautyTickets = null;
         }
 
+        if(item.isQuestItem()) {
+            Item removed = questItems.remove(item.getObjectId());
+            if(nonNull(removed)) {
+                updateItemIdLookUp(removed, questItems.values());
+                return true;
+            }
+            return false;
+        }
         return super.removeItem(item);
     }
 
@@ -670,11 +584,22 @@ public class PlayerInventory extends Inventory {
     public void restore() {
         super.restore();
         _adena = getItemByItemId(CommonItem.ADENA);
-        _ancientAdena = getItemByItemId(CommonItem.ANCIENT_ADENA);
         _beautyTickets = getItemByItemId(BEAUTY_TICKET_ID);
-        rustyCoin = getItemByItemId(CommonItem.RUSTY_COIN);
+        goldCoin = getItemByItemId(CommonItem.GOLD_COIN);
          silverCoin = getItemByItemId(CommonItem.SILVER_COIN);
          l2Coin = getItemByItemId(CommonItem.L2_COIN);
+        applyItemSkills();
+    }
+
+    @Override
+    public void deleteMe() {
+        super.deleteMe();
+        for (Item item : questItems.values()) {
+            item.updateDatabase(true);
+            item.deleteMe();
+            World.getInstance().removeObject(item);
+        }
+        questItems.clear();
     }
 
     /**
@@ -741,7 +666,7 @@ public class PlayerInventory extends Inventory {
     }
 
     public boolean validateCapacity(long slots, boolean questItem) {
-        return ((slots == 0) && !Config.AUTO_LOOT_SLOT_LIMIT) || questItem ? (getSize(Item::isQuestItem) + slots) <= owner.getQuestInventoryLimit() : (getSize(item -> !item.isQuestItem()) + slots) <= owner.getInventoryLimit();
+        return slots == 0 || questItem ? questItems.size() + slots <= owner.getQuestInventoryLimit() : getSize() + slots <= owner.getInventoryLimit();
     }
 
     @Override
@@ -840,7 +765,7 @@ public class PlayerInventory extends Inventory {
             } else {
                 item.changeCountWithoutTrace(countDelta, creator, reference);
             }
-            item.setLastChange(Item.MODIFIED);
+            item.setLastChange(ItemChangeType.MODIFIED);
             refreshWeight();
         } else {
             destroyItem(process, item, owner, null);
@@ -868,8 +793,8 @@ public class PlayerInventory extends Inventory {
         return false;
     }
 
-    public long getRustyCoin() {
-        return nonNull(rustyCoin) ? rustyCoin.getCount() : 0;
+    public long getGoldCoin() {
+        return nonNull(goldCoin) ? goldCoin.getCount() : 0;
     }
 
     public long getSilverCoin() {
@@ -908,5 +833,9 @@ public class PlayerInventory extends Inventory {
 
         return (ammunition.getItemType() == ARROW && itemType == WeaponType.BOW) ||
                (ammunition.getItemType() == BOLT && itemType == WeaponType.CROSSBOW || itemType == WeaponType.TWO_HAND_CROSSBOW);
+    }
+
+    public Collection<Item> getQuestItems() {
+        return questItems.values();
     }
 }

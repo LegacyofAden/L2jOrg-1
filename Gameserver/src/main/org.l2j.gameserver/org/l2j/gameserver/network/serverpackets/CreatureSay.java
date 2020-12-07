@@ -18,9 +18,9 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.commons.util.Util;
 import org.l2j.gameserver.enums.ChatType;
-import org.l2j.gameserver.instancemanager.MentorManager;
 import org.l2j.gameserver.model.Clan;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.network.GameClient;
@@ -63,9 +63,6 @@ public final class CreatureSay extends ServerPacket {
             if ((receiver.getClanId() > 0) && (receiver.getClanId() == sender.getClanId())) {
                 _mask |= 0x02;
             }
-            if ((MentorManager.getInstance().getMentee(receiver.getObjectId(), sender.getObjectId()) != null) || (MentorManager.getInstance().getMentee(sender.getObjectId(), receiver.getObjectId()) != null)) {
-                _mask |= 0x04;
-            }
             if ((receiver.getAllyId() > 0) && (receiver.getAllyId() == sender.getAllyId())) {
                 _mask |= 0x08;
             }
@@ -107,30 +104,30 @@ public final class CreatureSay extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.SAY2);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.SAY2, buffer );
 
-        writeInt(objectId);
-        writeInt(type.getClientId());
-        writeString(senderName);
-        writeInt(npcString); // High Five NPCString ID
+        buffer.writeInt(objectId);
+        buffer.writeInt(type.getClientId());
+        buffer.writeString(senderName);
+        buffer.writeInt(npcString); // High Five NPCString ID
 
         if (nonNull(message)) {
-            writeString(message);
+            buffer.writeString(message);
             if ((charLevel > 0) && (type == ChatType.WHISPER)) {
-                writeByte(_mask);
+                buffer.writeByte(_mask);
                 if ((_mask & 0x10) == 0) {
-                    writeByte(charLevel);
+                    buffer.writeByte(charLevel);
                 }
             }
         } else if (nonNull(npcStringParameters)) {
             for (String s : npcStringParameters) {
-                writeString(s);
+                buffer.writeString(s);
             }
         }
-        writeByte(rank);
-        writeByte(castleId);
-        writeInt(0x00); // share location
+        buffer.writeByte(rank);
+        buffer.writeByte(castleId);
+        buffer.writeInt(0x00); // share location
     }
 
     @Override

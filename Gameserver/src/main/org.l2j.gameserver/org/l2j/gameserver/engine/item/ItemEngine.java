@@ -25,6 +25,9 @@ import org.l2j.gameserver.data.database.dao.PetDAO;
 import org.l2j.gameserver.data.xml.impl.*;
 import org.l2j.gameserver.enums.ItemLocation;
 import org.l2j.gameserver.enums.ItemSkillType;
+import org.l2j.gameserver.enums.Race;
+import org.l2j.gameserver.handler.IItemHandler;
+import org.l2j.gameserver.handler.ItemHandler;
 import org.l2j.gameserver.idfactory.IdFactory;
 import org.l2j.gameserver.model.ExtractableProduct;
 import org.l2j.gameserver.model.WorldObject;
@@ -38,7 +41,6 @@ import org.l2j.gameserver.model.events.EventDispatcher;
 import org.l2j.gameserver.model.events.impl.item.OnItemCreate;
 import org.l2j.gameserver.model.holders.ItemSkillHolder;
 import org.l2j.gameserver.model.item.*;
-import org.l2j.gameserver.model.item.instance.Item;
 import org.l2j.gameserver.model.item.type.*;
 import org.l2j.gameserver.model.stats.Stat;
 import org.l2j.gameserver.model.stats.functions.FuncTemplate;
@@ -56,6 +58,7 @@ import org.w3c.dom.Node;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.ServiceLoader;
 import java.util.concurrent.ScheduledFuture;
 
 import static java.util.Objects.*;
@@ -104,7 +107,6 @@ public final class ItemEngine extends GameXmlReader {
         var attrs = weaponNode.getAttributes();
         var weapon = new Weapon(parseInt(attrs, "id"), parseString(attrs, "name"), parseEnum(attrs, WeaponType.class, "type"), parseEnum(attrs, BodyPart.class, "body-part"));
 
-        weapon.setIcon(parseString(attrs, "icon"));
         weapon.setDisplayId(parseInt(attrs, "display-id", weapon.getId()));
         weapon.setMagic(parseBoolean(attrs, "magic"));
 
@@ -115,7 +117,7 @@ public final class ItemEngine extends GameXmlReader {
                 case "damage" -> parseWeaponDamage(weapon, node);
                 case "consume" -> parseWeaponConsume(weapon, node);
                 case "restriction" -> parseItemRestriction(weapon, node);
-                case "conditions" -> parseItemCondition(weapon, node);
+                case "condition" -> parseItemCondition(weapon, node);
                 case "stats" -> parseItemStats(weapon, node);
                 case "skills"-> parseItemSkills(weapon, node);
             }
@@ -163,7 +165,7 @@ public final class ItemEngine extends GameXmlReader {
         if(nonNull(condition)) {
             var attr = node.getAttributes();
             var msg = parseString(attr, "msg");
-            var msgId = parseInteger(attr, "msg-id");
+            var msgId = parseInt(attr, "msg-id");
             if(nonNull(msg)) {
                 condition.setMessage(msg);
             } else if(nonNull(msgId)) {
@@ -191,6 +193,7 @@ public final class ItemEngine extends GameXmlReader {
                 case "sex" -> and(playerCondition, ConditionPlayerSex.of(parseInt(attr)));
                 case "flying" -> and(playerCondition, ConditionPlayerFlyMounted.of(parseBoolean(attr)));
                 case "zone" -> and(playerCondition, new ConditionPlayerInsideZoneId(parseIntList(attr)));
+                case "races" -> and(playerCondition, new ConditionPlayerRace(parseEnumSet(attr, Race.class)));
                 default -> playerCondition;
             };
         }
@@ -252,13 +255,13 @@ public final class ItemEngine extends GameXmlReader {
         weapon.setCanAttack(parseBoolean(attr, "can-attack"));
         weapon.setRestrictSkills(parseBoolean(attr, "restrict-skills"));
         weapon.setEquipReuseDelay(parseInt(attr, "equip-reuse-delay"));
+        weapon.setHeroItem(parseBoolean(attr, "hero"));
     }
 
     private void parseArmor(Node armorNode) {
         var attrs = armorNode.getAttributes();
         var armor = new Armor(parseInt(attrs, "id"), parseString(attrs, "name"), parseEnum(attrs, ArmorType.class, "type"), parseEnum(attrs, BodyPart.class, "body-part"));
 
-        armor.setIcon(parseString(attrs, "icon"));
         armor.setDisplayId(parseInt(attrs, "display-id", armor.getId()));
 
         forEach(armorNode,node ->{
@@ -266,7 +269,7 @@ public final class ItemEngine extends GameXmlReader {
                 case "attributes" -> parseArmorAttributes(armor, node);
                 case "crystal" -> parseCrystalType(armor, node);
                 case "restriction" -> parseItemRestriction(armor, node);
-                case "conditions" -> parseItemCondition(armor, node);
+                case "condition" -> parseItemCondition(armor, node);
                 case "stats" -> parseItemStats(armor, node);
                 case "skills"-> parseItemSkills(armor, node);
             }
@@ -280,12 +283,12 @@ public final class ItemEngine extends GameXmlReader {
         var attr = node.getAttributes();
         armor.setEnchantable(parseBoolean(attr, "enchant-enabled"));
         armor.setEquipReuseDelay(parseInt(attr, "equip-reuse-delay"));
+        armor.setHeroItem(parseBoolean(attr, "hero"));
     }
 
     private void parseItem(Node itemNode) {
         var attrs = itemNode.getAttributes();
         var item = new EtcItem(parseInt(attrs, "id"), parseString(attrs, "name"), parseEnum(attrs, EtcItemType.class, "type", EtcItemType.NONE));
-        item.setIcon(parseString(attrs, "icon"));
         item.setDisplayId(parseInt(attrs, "display-id", item.getId()));
 
         forEach(itemNode, node ->{
@@ -297,7 +300,7 @@ public final class ItemEngine extends GameXmlReader {
                 case "skill-reducer" -> parseSkillReducer(item, node);
                 case "extract" -> parseItemExtract(item, node);
                 case "transformation-book" -> parseTransformationBook(item, node);
-                case "conditions" -> parseItemCondition(item, node);
+                case "condition" -> parseItemCondition(item, node);
             }
         } );
         item.fillType2();
@@ -315,11 +318,14 @@ public final class ItemEngine extends GameXmlReader {
 
     private void parseItemExtract(EtcItem item, Node node) {
         item.setHandler("ExtractableItems");
-        forEach(node, "item", itemNode -> {
-            var attr = itemNode.getAttributes();
-            item.addCapsuledItem(new ExtractableProduct(parseInt(attr, "id"), parseInt(attr, "min-count"), parseInt(attr, "min-count"),
-                    parseDouble(attr, "chance"), parseInt(attr, "min-enchant"), parseInt(attr, "max-enchant")));
-        });
+        item.setExtractableMax(parseInt(node.getAttributes(), "max"));
+        for(var itemNode = node.getFirstChild(); nonNull(itemNode); itemNode = itemNode.getNextSibling()) {
+            if(itemNode.getNodeName().equals("item")) {
+                var attr = itemNode.getAttributes();
+                item.addCapsuledItem(new ExtractableProduct(parseInt(attr, "id"), parseInt(attr, "min-count"), parseInt(attr, "max-count"),
+                        parseDouble(attr, "chance"), parseInt(attr, "min-enchant"), parseInt(attr, "max-enchant")));
+            }
+        }
     }
 
     private void parseSkillReducer(EtcItem item, Node node) {
@@ -353,7 +359,7 @@ public final class ItemEngine extends GameXmlReader {
         item.setCommissionType(parseEnum(attr, CommissionItemType.class, "commission-type", CommissionItemType.OTHER_ITEM));
         item.setReuseDelay(parseInt(attr, "reuse-delay"));
         item.setReuseGroup(parseInt(attr, "reuse-group"));
-        item.setDuration(parselong(attr, "duration"));
+        item.setDuration(parseLong(attr, "duration"));
         item.setForNpc(parseBoolean(attr, "for-npc"));
     }
 
@@ -365,6 +371,14 @@ public final class ItemEngine extends GameXmlReader {
      */
     public ItemTemplate getTemplate(int id) {
         return items.get(id);
+    }
+
+    public Item createTempItem(int itemId) {
+        var template = items.get(itemId);
+        requireNonNull(template, "The itemId should be a existent template id");
+        var item = new Item(0, template);
+        item.setCount(1);
+        return item;
     }
 
     /**
@@ -395,12 +409,12 @@ public final class ItemEngine extends GameXmlReader {
                 final Attackable raid = (Attackable) reference;
                 // if in CommandChannel and was killing a World/RaidBoss
                 if ((raid.getFirstCommandChannelAttacked() != null) && !characterSettings.autoLootRaid()) {
-                    item.setOwnerId(raid.getFirstCommandChannelAttacked().getLeaderObjectId());
+                    item.changeOwner(raid.getFirstCommandChannelAttacked().getLeaderObjectId());
                     itemLootShedule = ThreadPool.schedule(new ResetOwner(item), characterSettings.raidLootPrivilegeTime());
                     item.setItemLootShedule(itemLootShedule);
                 }
             } else if (!characterSettings.autoLoot() || ((reference instanceof EventMonster) && ((EventMonster) reference).eventDropOnGround())) {
-                item.setOwnerId(actor.getObjectId());
+                item.changeOwner(actor.getObjectId());
                 itemLootShedule = ThreadPool.schedule(new ResetOwner(item), 15000);
                 item.setItemLootShedule(itemLootShedule);
             }
@@ -456,26 +470,24 @@ public final class ItemEngine extends GameXmlReader {
      * @param reference the object referencing current action like NPC selling item or previous item in transformation.
      */
     public void destroyItem(String process, Item item, Player actor, Object reference) {
-        synchronized (item) {
-            final long old = item.getCount();
-            item.setItemLocation(ItemLocation.VOID);
-            item.setCount(0);
-            item.setOwnerId(0);
-            item.setLastChange(Item.REMOVED);
+        final long old = item.getCount();
+        item.changeItemLocation(ItemLocation.VOID);
+        item.setCount(0);
+        item.changeOwner(0);
+        item.setLastChange(ItemChangeType.REMOVED);
 
-            World.getInstance().removeObject(item);
-            IdFactory.getInstance().releaseId(item.getObjectId());
+        World.getInstance().removeObject(item);
+        IdFactory.getInstance().releaseId(item.getObjectId());
 
-            var generalSettings = getSettings(GeneralSettings.class);
-            if (generalSettings.logItems()) {
-                if (!generalSettings.smallLogItems() || item.isEquipable() || item.getId() == CommonItem.ADENA) {
-                    LOGGER_ITEMS.info("DELETE: {}, item {}:+{} {} ({}), Previous Count ({}), {}, {}", process, item.getObjectId(), item.getEnchantLevel(), item.getTemplate().getName(), item.getCount(),old ,actor, reference);
-                }
+        var generalSettings = getSettings(GeneralSettings.class);
+        if (generalSettings.logItems()) {
+            if (!generalSettings.smallLogItems() || item.isEquipable() || item.getId() == CommonItem.ADENA) {
+                LOGGER_ITEMS.info("DELETE: {}, item {}:+{} {} ({}), Previous Count ({}), {}, {}", process, item.getObjectId(), item.getEnchantLevel(), item.getTemplate().getName(), item.getCount(),old ,actor, reference);
             }
-
-            auditGM(process, item.getId(), item.getCount(), actor, reference, item);
-            getDAO(PetDAO.class).deleteByItem(item.getObjectId());
         }
+
+        auditGM(process, item.getId(), item.getCount(), actor, reference, item);
+        getDAO(PetDAO.class).deleteByItem(item.getObjectId());
     }
 
     public void reload() {
@@ -495,20 +507,21 @@ public final class ItemEngine extends GameXmlReader {
 
         @Override
         public void run() {
-            _item.setOwnerId(0);
+            _item.changeOwner(0);
             _item.setItemLootShedule(null);
         }
 
     }
 
     public static void init() {
+        ServiceLoader.load(IItemHandler.class).forEach(ItemHandler.getInstance()::registerHandler);
         getInstance().load();
         EnchantItemEngine.init();
         EnchantItemOptionsData.init();
         ItemCrystallizationData.init();
         AugmentationEngine.init();
         VariationData.init();
-        EnsoulData.init();
+        ItemEnsoulEngine.init();
     }
 
     public static ItemEngine getInstance() {

@@ -19,8 +19,8 @@
  */
 package org.l2j.gameserver.instancemanager;
 
-import org.l2j.commons.database.DatabaseFactory;
 import org.l2j.gameserver.Config;
+import org.l2j.gameserver.data.database.dao.ItemDAO;
 import org.l2j.gameserver.model.item.auction.ItemAuctionInstance;
 import org.l2j.gameserver.settings.ServerSettings;
 import org.l2j.gameserver.util.GameXmlReader;
@@ -32,13 +32,12 @@ import org.w3c.dom.Node;
 
 import java.io.File;
 import java.nio.file.Path;
-import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.l2j.commons.configuration.Configurator.getSettings;
-
+import static org.l2j.commons.database.DatabaseAccess.getDAO;
 
 /**
  * @author Forsaiken
@@ -55,16 +54,7 @@ public final class ItemAuctionManager extends GameXmlReader {
             return;
         }
 
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             Statement statement = con.createStatement();
-             ResultSet rset = statement.executeQuery("SELECT auctionId FROM item_auction ORDER BY auctionId DESC LIMIT 0, 1")) {
-            if (rset.next()) {
-                _auctionIds.set(rset.getInt(1) + 1);
-            }
-        } catch (SQLException e) {
-            LOGGER.error("Failed loading auctions.", e);
-        }
-
+        _auctionIds.set(getDAO(ItemDAO.class).findLastAuctionId() + 1);
         load();
     }
 
@@ -74,19 +64,8 @@ public final class ItemAuctionManager extends GameXmlReader {
     }
 
     public static void deleteAuction(int auctionId) {
-        try (Connection con = DatabaseFactory.getInstance().getConnection()) {
-            try (PreparedStatement statement = con.prepareStatement("DELETE FROM item_auction WHERE auctionId=?")) {
-                statement.setInt(1, auctionId);
-                statement.execute();
-            }
-
-            try (PreparedStatement statement = con.prepareStatement("DELETE FROM item_auction_bid WHERE auctionId=?")) {
-                statement.setInt(1, auctionId);
-                statement.execute();
-            }
-        } catch (SQLException e) {
-            LOGGER.error("ItemAuctionManager: Failed deleting auction: " + auctionId, e);
-        }
+        getDAO(ItemDAO.class).deleteItemAuction(auctionId);
+        getDAO(ItemDAO.class).deleteItemAuctionBid(auctionId);
     }
 
     @Override
@@ -118,7 +97,7 @@ public final class ItemAuctionManager extends GameXmlReader {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error(getClass().getSimpleName() + ": Failed loading auctions from xml.", e);
+            LOGGER.error("Failed loading auctions from xml.", e);
         }
     }
 

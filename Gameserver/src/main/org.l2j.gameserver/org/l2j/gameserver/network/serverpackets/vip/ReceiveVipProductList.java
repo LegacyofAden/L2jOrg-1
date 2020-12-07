@@ -18,9 +18,10 @@
  */
 package org.l2j.gameserver.network.serverpackets.vip;
 
-import org.l2j.gameserver.data.xml.impl.PrimeShopData;
-import org.l2j.gameserver.model.primeshop.PrimeShopItem;
-import org.l2j.gameserver.model.primeshop.PrimeShopProduct;
+import io.github.joealisson.mmocore.WritableBuffer;
+import org.l2j.gameserver.engine.item.shop.L2Store;
+import org.l2j.gameserver.engine.item.shop.l2store.L2StoreItem;
+import org.l2j.gameserver.engine.item.shop.l2store.L2StoreProduct;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
@@ -30,44 +31,44 @@ import static java.util.Objects.nonNull;
 public class ReceiveVipProductList extends ServerPacket {
 
     @Override
-    protected void writeImpl(GameClient client) {
+    protected void writeImpl(GameClient client, WritableBuffer buffer) {
         var player = client.getPlayer();
-        var products = PrimeShopData.getInstance().getPrimeItems();
-        var gift = PrimeShopData.getInstance().getVipGiftOfTier(player.getVipTier());
+        var products = L2Store.getInstance().getPrimeItems();
+        var gift = L2Store.getInstance().getVipGiftOfTier(player.getVipTier());
 
-        writeId(ServerExPacketId.EX_BR_VIP_PRODUCT_LIST_ACK);
-        writeLong(player.getAdena());
-        writeLong(player.getRustyCoin()); // Rusty Coin Amount
-        writeLong(player.getSilverCoin()); // Silver Coin Amount
-        writeByte(1); // Show Reward tab
+        writeId(ServerExPacketId.EX_BR_VIP_PRODUCT_LIST_ACK, buffer );
+        buffer.writeLong(player.getAdena());
+        buffer.writeLong(player.getGoldCoin()); // Gold Coin Amount
+        buffer.writeLong(player.getSilverCoin()); // Silver Coin Amount
+        buffer.writeByte(1); // Show Reward tab
 
         if(nonNull(gift)) {
-            writeInt(products.size() + 1);
-            putProduct(gift);
+            buffer.writeInt(products.size() + 1);
+            writeProduct(gift, buffer);
         } else {
-            writeInt(products.size());
+            buffer.writeInt(products.size());
         }
 
         for (var product : products.values()) {
-            putProduct(product);
+            writeProduct(product, buffer);
         }
     }
 
-    private void putProduct(PrimeShopProduct product) {
-        writeInt(product.getId());
-        writeByte(product.getCategory());
-        writeByte(product.getPaymentType());
-        writeInt(product.getPrice()); // L2 Coin | Rusty Coin seems to use the same field based on payment type
-        writeInt(product.getSilverCoin());
-        writeByte(product.getPanelType()); // NEW - 6; HOT - 5 ... Unk
-        writeByte(product.getVipTier());
-        writeByte(10); // Unk
+    private void writeProduct(L2StoreProduct product, WritableBuffer buffer) {
+        buffer.writeInt(product.getId());
+        buffer.writeByte(product.getCategory());
+        buffer.writeByte(product.getPaymentType());
+        buffer.writeInt(product.getPrice()); // L2 Coin | Gold Coin seems to use the same field based on payment type
+        buffer.writeInt(product.getSilverCoin());
+        buffer.writeByte(product.getPanelType()); // NEW - 6; HOT - 5 ... Unk
+        buffer.writeByte(product.getVipTier());
+        buffer.writeByte(10);
 
-        writeByte(product.getItems().size());
+        buffer.writeByte(product.getItems().size());
 
-        for (PrimeShopItem item : product.getItems()) {
-            writeInt(item.getId());
-            writeInt((int) item.getCount());
+        for (L2StoreItem item : product.getItems()) {
+            buffer.writeInt(item.getId());
+            buffer.writeInt((int) item.getCount());
         }
     }
 

@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network;
 
-import io.github.joealisson.mmocore.PacketBuffer;
+import io.github.joealisson.mmocore.ReadableBuffer;
 import org.l2j.gameserver.network.clientpackets.*;
 import org.l2j.gameserver.network.clientpackets.adenadistribution.RequestDivideAdena;
 import org.l2j.gameserver.network.clientpackets.adenadistribution.RequestDivideAdenaCancel;
@@ -32,6 +32,10 @@ import org.l2j.gameserver.network.clientpackets.autoplay.ExAutoPlaySetting;
 import org.l2j.gameserver.network.clientpackets.autoplay.ExRequestActivateAutoShortcut;
 import org.l2j.gameserver.network.clientpackets.captcha.RequestCaptchaAnswer;
 import org.l2j.gameserver.network.clientpackets.captcha.RequestRefreshCaptcha;
+import org.l2j.gameserver.network.clientpackets.castle.ExCastleWarInfo;
+import org.l2j.gameserver.network.clientpackets.castle.ExRequestMercenaryCastleWarCastleSiegeAttacker;
+import org.l2j.gameserver.network.clientpackets.castle.ExRequestMercenaryCastleWarCastleSiegeDefender;
+import org.l2j.gameserver.network.clientpackets.castle.ExRequestMercenaryCastleWarCastleSiegeInfo;
 import org.l2j.gameserver.network.clientpackets.ceremonyofchaos.RequestCancelCuriousHouse;
 import org.l2j.gameserver.network.clientpackets.ceremonyofchaos.RequestCuriousHouseHtml;
 import org.l2j.gameserver.network.clientpackets.ceremonyofchaos.RequestJoinCuriousHouse;
@@ -45,21 +49,23 @@ import org.l2j.gameserver.network.clientpackets.ensoul.RequestItemEnsoul;
 import org.l2j.gameserver.network.clientpackets.ensoul.RequestTryEnSoulExtraction;
 import org.l2j.gameserver.network.clientpackets.friend.RequestFriendDetailInfo;
 import org.l2j.gameserver.network.clientpackets.l2coin.RequestPurchaseLimitShopItemList;
+import org.l2j.gameserver.network.clientpackets.l2store.*;
 import org.l2j.gameserver.network.clientpackets.luckygame.RequestLuckyGamePlay;
 import org.l2j.gameserver.network.clientpackets.luckygame.RequestLuckyGameStartInfo;
 import org.l2j.gameserver.network.clientpackets.mentoring.*;
 import org.l2j.gameserver.network.clientpackets.mission.RequestOneDayRewardReceive;
 import org.l2j.gameserver.network.clientpackets.mission.RequestTodoList;
 import org.l2j.gameserver.network.clientpackets.olympiad.*;
-import org.l2j.gameserver.network.clientpackets.pledgebonus.RequestPledgeBonusOpen;
-import org.l2j.gameserver.network.clientpackets.pledgebonus.RequestPledgeBonusReward;
-import org.l2j.gameserver.network.clientpackets.pledgebonus.RequestPledgeBonusRewardList;
-import org.l2j.gameserver.network.clientpackets.primeshop.*;
+import org.l2j.gameserver.network.clientpackets.pledge.*;
+import org.l2j.gameserver.network.clientpackets.pledge.bonus.RequestPledgeBonusOpen;
+import org.l2j.gameserver.network.clientpackets.pledge.bonus.RequestPledgeBonusReward;
+import org.l2j.gameserver.network.clientpackets.pledge.bonus.RequestPledgeBonusRewardList;
 import org.l2j.gameserver.network.clientpackets.pvpbook.ExRequestKillerLocation;
 import org.l2j.gameserver.network.clientpackets.pvpbook.ExRequestPvpBookList;
 import org.l2j.gameserver.network.clientpackets.pvpbook.ExTeleportToKiller;
 import org.l2j.gameserver.network.clientpackets.raidbossinfo.RequestRaidBossSpawnInfo;
 import org.l2j.gameserver.network.clientpackets.raidbossinfo.RequestRaidServerInfo;
+import org.l2j.gameserver.network.clientpackets.raidserver.ExConnectToRaidServer;
 import org.l2j.gameserver.network.clientpackets.rank.ExRankCharInfo;
 import org.l2j.gameserver.network.clientpackets.rank.ExRankingCharRankers;
 import org.l2j.gameserver.network.clientpackets.rank.ExRequestRankingCharHistory;
@@ -203,7 +209,7 @@ public enum ExIncomingPackets implements PacketFactory {
     EX_REQUEST_SHOW_PETITION(null, ConnectionState.IN_GAME_STATES),
     EX_REQUEST_SHOWSTEP_TWO(null, ConnectionState.IN_GAME_STATES),
     EX_REQUEST_SHOWSTEP_THREE(null, ConnectionState.IN_GAME_STATES),
-    EX_CONNECT_TO_RAID_SERVER(null, ConnectionState.IN_GAME_STATES),
+    EX_CONNECT_TO_RAID_SERVER(ExConnectToRaidServer::new, ConnectionState.IN_GAME_STATES),
     EX_RETURN_FROM_RAID(null, ConnectionState.IN_GAME_STATES),
     EX_REFUND_REQ(RequestRefundItem::new, ConnectionState.IN_GAME_STATES),
     EX_BUY_SELL_UI_CLOSE_REQ(RequestBuySellUIClose::new, ConnectionState.IN_GAME_STATES),
@@ -441,7 +447,7 @@ public enum ExIncomingPackets implements PacketFactory {
     EX_UNLOCKED_ITEM_CANCEL(null, ConnectionState.IN_GAME_STATES),
     EX_ELEMENTAL_SPIRIT_CHANGE_TYPE(ExElementalSpiritChangeType::new, ConnectionState.IN_GAME_STATES),
     EX_BLOCK_PACKET_FOR_AD(ExRequestBlockListForAD::new, ConnectionState.IN_GAME_STATES),
-    EX_USER_BAN_INFO(null, ConnectionState.IN_GAME_STATES),
+    EX_USER_BAN_INFO(ExRequestUserBanInfo::new, ConnectionState.AUTHENTICATED_STATES),
     EX_INTERACT_MODIFY(null, ConnectionState.IN_GAME_STATES),
     EX_TRY_ENCHANT_ARTIFACT(null, ConnectionState.IN_GAME_STATES),
     EX_UPGRADE_SYSTEM_NORMAL_REQUEST(ExUpgradeSystemNormalRequest::new, ConnectionState.IN_GAME_STATES),
@@ -467,8 +473,8 @@ public enum ExIncomingPackets implements PacketFactory {
     EX_PAYBACK_LIST(null, ConnectionState.IN_GAME_STATES),
     EX_PAYBACK_GIVE_REWARD(null, ConnectionState.IN_GAME_STATES),
     EX_AUTOPLAY_SETTING(ExAutoPlaySetting::new, ConnectionState.IN_GAME_STATES),
-    EX_OLYMPIAD_MATCH_MAKING(null, ConnectionState.IN_GAME_STATES),
-    EX_OLYMPIAD_MATCH_MAKING_CANCEL(null, ConnectionState.IN_GAME_STATES),
+    EX_OLYMPIAD_MATCH_MAKING(ExOlympiadMatchMaking::new, ConnectionState.IN_GAME_STATES),
+    EX_OLYMPIAD_MATCH_MAKING_CANCEL(ExOlympiadMatchMakingCancel::new, ConnectionState.IN_GAME_STATES),
     EX_FESTIVAL_BM_INFO(null, ConnectionState.IN_GAME_STATES),
     EX_FESTIVAL_BM_GAME(null, ConnectionState.IN_GAME_STATES),
     EX_GACHA_SHOP_INFO(null, ConnectionState.IN_GAME_STATES),
@@ -480,10 +486,10 @@ public enum ExIncomingPackets implements PacketFactory {
     EX_RANKING_CHAR_HISTORY(ExRequestRankingCharHistory::new, ConnectionState.IN_GAME_STATES),
     EX_RANKING_CHAR_RANKERS(ExRankingCharRankers::new, ConnectionState.IN_GAME_STATES),
     EX_PLEDGE_MERCENARY_RECRUIT_INFO_SET(null, ConnectionState.IN_GAME_STATES),
-    EX_MERCENARY_CASTLEWAR_CASTLE_INFO(null, ConnectionState.IN_GAME_STATES),
-    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_INFO(null, ConnectionState.IN_GAME_STATES),
-    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_ATTACKER_LIST(null, ConnectionState.IN_GAME_STATES),
-    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_DEFENDER_LIST(null, ConnectionState.IN_GAME_STATES),
+    EX_MERCENARY_CASTLEWAR_CASTLE_INFO(ExCastleWarInfo::new, ConnectionState.IN_GAME_STATES),
+    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_INFO(ExRequestMercenaryCastleWarCastleSiegeInfo::new, ConnectionState.IN_GAME_STATES),
+    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_ATTACKER_LIST(ExRequestMercenaryCastleWarCastleSiegeAttacker::new, ConnectionState.IN_GAME_STATES),
+    EX_MERCENARY_CASTLEWAR_CASTLE_SIEGE_DEFENDER_LIST(ExRequestMercenaryCastleWarCastleSiegeDefender::new, ConnectionState.IN_GAME_STATES),
     EX_PLEDGE_MERCENARY_MEMBER_LIST(null, ConnectionState.IN_GAME_STATES),
     EX_PLEDGE_MERCENARY_MEMBER_JOIN(null, ConnectionState.IN_GAME_STATES),
     EX_PVPBOOK_LIST(ExRequestPvpBookList::new, ConnectionState.IN_GAME_STATES),
@@ -576,14 +582,14 @@ public enum ExIncomingPackets implements PacketFactory {
     }
 
     @Override
-    public PacketFactory handleExtension(PacketBuffer buffer) {
+    public PacketFactory handleExtension(ReadableBuffer buffer) {
         if (EX_USER_BOOKMARK == this) {
             return handleBookMarkPaket(buffer);
         }
         return NULLABLE_PACKET_FACTORY;
     }
 
-    private PacketFactory handleBookMarkPaket(PacketBuffer packet) {
+    private PacketFactory handleBookMarkPaket(ReadableBuffer packet) {
         return switch (packet.readInt()) {
             case 0 -> new DynamicPacketFactory(RequestBookMarkSlotInfo::new);
             case 1 -> new DynamicPacketFactory(RequestSaveBookMarkSlot::new);

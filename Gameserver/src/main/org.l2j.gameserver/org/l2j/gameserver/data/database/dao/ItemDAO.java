@@ -23,6 +23,8 @@ import org.l2j.commons.database.annotation.Query;
 import org.l2j.gameserver.data.database.data.ItemData;
 import org.l2j.gameserver.data.database.data.ItemOnGroundData;
 import org.l2j.gameserver.data.database.data.ItemVariationData;
+import org.l2j.gameserver.enums.ItemLocation;
+import org.l2j.gameserver.model.commission.CommissionItem;
 
 import java.util.Collection;
 import java.util.List;
@@ -59,20 +61,59 @@ public interface ItemDAO extends DAO<Object> {
     @Query("SELECT * FROM itemsonground")
     List<ItemOnGroundData> findAllItemsOnGround();
 
-    @Query("SELECT mineralId,option1,option2 FROM item_variations WHERE itemId = :itemId:")
-    ItemVariationData findItemVariationByItemId(int itemId);
+    @Query("SELECT * FROM item_variations WHERE itemId = :itemId:")
+    ItemVariationData findItemVariationByItem(int itemId);
 
-    @Query("SELECT object_id,item_id,loc_data,enchant_level FROM items WHERE owner_id = :objectId: AND loc='PAPERDOLL'")
-    List<ItemData> findAllPaperDollItemsByObjectId(int objectId);
+    @Query("SELECT * FROM items WHERE owner_id = :ownerId: AND loc=:loc:")
+    List<ItemData> findItemsByOwnerAndLoc(int ownerId, ItemLocation loc);
+
+    @Query("SELECT * FROM items WHERE owner_id=:ownerId: AND loc='MAIL' AND loc_data=:mailId:")
+    List<ItemData> findItemsAttachment(int ownerId, int mailId);
+
+    @Query("SELECT * FROM items WHERE owner_id=:ownerId: AND (loc=:baseLoc: OR loc=:equipLoc:) ORDER BY loc_data")
+    List<ItemData> findInventoryItems(int ownerId,  ItemLocation baseLoc, ItemLocation equipLoc);
 
     void save(Collection<ItemOnGroundData> datas);
 
     @Query("DELETE FROM item_variations WHERE itemId IN (SELECT object_id FROM items WHERE items.owner_id=:playerId:)")
     void deleteVariationsByOwner(int playerId);
 
-    @Query("DELETE FROM item_special_abilities WHERE objectId IN (SELECT object_id FROM items WHERE items.owner_id=:playerId:)")
-    void deleteSpecialAbilitiesByOwner(int playerId);
-
     @Query("DELETE FROM items WHERE owner_id=:playerId:")
     void deleteByOwner(int playerId);
+
+    @Query("""
+            INSERT INTO items (owner_id, object_id, item_id, count, loc, loc_data, time)
+            VALUES (:owner:, :objectId:, :itemId:, :count:, :loc:, :locData:, -1 )""")
+    void saveItem(int owner, int objectId, int itemId, long count, ItemLocation loc, int locData);
+
+    @Query("DELETE FROM item_variations WHERE itemId = :objectId:")
+    void deleteVariations(int objectId);
+
+    @Query("DELETE FROM items WHERE object_id = :objectId:")
+    void deleteItem(int objectId);
+
+    @Query("DELETE FROM `commission_items` WHERE `commission_id` = :commissionId:")
+    boolean deleteCommission(long commissionId);
+
+    @Query("DELETE FROM item_auction WHERE auctionId=:auctionId:")
+    void deleteItemAuction(int auctionId);
+
+    @Query("DELETE FROM item_auction_bid WHERE auctionId=:auctionId:")
+    void deleteItemAuctionBid(int auctionId);
+
+    @Query("SELECT auctionId FROM item_auction ORDER BY auctionId DESC LIMIT 1")
+    int findLastAuctionId();
+
+    @Query("""
+           SELECT * FROM items i
+           JOIN commission_items ci ON ci.item_object_id = i.object_id
+           WHERE i.loc = 'COMMISSION'
+           """)
+    List<CommissionItem> findCommissionItems();
+
+    @Query("UPDATE items SET ensoul = :ensoul: WHERE object_id = :objectId:")
+    void updateEnsoul(int objectId, int ensoul);
+
+    @Query("UPDATE items SET special_ensoul = :ensoul: WHERE object_id = :objectId:")
+    void updateSpecialEnsoul(int objectId, int ensoul);
 }

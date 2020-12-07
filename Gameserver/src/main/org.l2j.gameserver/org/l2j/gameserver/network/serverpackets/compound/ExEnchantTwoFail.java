@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets.compound;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
@@ -26,7 +26,7 @@ import org.l2j.gameserver.network.serverpackets.ServerPacket;
 /**
  * @author UnAfraid
  */
-@StaticPacket
+
 public class ExEnchantTwoFail extends ServerPacket {
     public static final ExEnchantTwoFail STATIC_PACKET = new ExEnchantTwoFail();
 
@@ -34,8 +34,8 @@ public class ExEnchantTwoFail extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_ENCHANT_TWO_FAIL);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_ENCHANT_TWO_FAIL, buffer );
     }
 
 }

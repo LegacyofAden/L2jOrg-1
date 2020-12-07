@@ -67,7 +67,7 @@ public final class World {
     /**
      * Bit shift, defines number of regions note, shifting by 15 will result in regions corresponding to map tiles shifting by 11 divides one tile to 16x16 regions.
      */
-    private static final int SHIFT_BY = 10;
+    private static final int SHIFT_BY = 11;
     public static final int TILE_SIZE = 32768;
     /**
      * Map dimensions.
@@ -161,8 +161,8 @@ public final class World {
         final Player existingPlayer = players.putIfAbsent(player.getObjectId(), player);
 
         if (nonNull(existingPlayer)) {
-            Disconnection.of(existingPlayer).defaultSequence(false);
-            Disconnection.of(player).defaultSequence(false);
+            Disconnection.of(existingPlayer).logout(false);
+            Disconnection.of(player).logout(false);
             LOGGER.warn("Duplicate character!? Disconnected both characters {})", player);
         }
     }
@@ -354,18 +354,26 @@ public final class World {
     }
 
     private void switchRegion(WorldObject object, WorldRegion oldRegion, WorldRegion newRegion) {
-        newRegion.forEachSurroundingRegion(w -> {
-            if (!w.isSurroundingRegion(oldRegion)) {
-                w.forEachObject(WorldObject.class, other -> beAwareOfEachOther(object, other), other -> !object.equals(other) && Objects.equals(other.getInstanceWorld(), object.getInstanceWorld()));
+        for (WorldRegion region : newRegion.surroundingRegions()) {
+            if(!region.isSurroundingRegion(oldRegion)) {
+                for (WorldObject other : region.objects()) {
+                    if(!other.equals(object) && Objects.equals(other.getInstanceWorld(), object.getInstanceWorld())) {
+                        beAwareOfEachOther(object, other);
+                    }
+                }
             }
-        });
+        }
 
         if(nonNull(oldRegion)) {
-            oldRegion.forEachSurroundingRegion(w -> {
-                if (!newRegion.isSurroundingRegion(w)) {
-                    w.forEachObject(WorldObject.class, other -> this.forgetEachOther(object, other), other -> !object.equals(other));
+            for (WorldRegion region : oldRegion.surroundingRegions()) {
+                if(!region.isSurroundingRegion(oldRegion)) {
+                    for (WorldObject other : region.objects()) {
+                        if(!other.equals(object)) {
+                            forgetEachOther(object, other);
+                        }
+                    }
                 }
-            });
+            }
         }
     }
 
@@ -563,7 +571,7 @@ public final class World {
             if (isNpc(object)) {
                 final Npc npc = (Npc) object;
                 npc.deleteMe();
-                LOGGER.warn("Deleting npc {} NPCID[{}] from invalid location X:{} Y:{} Z: {}", object.getName(), npc.getId(), object.getX(), object.getY(), object.getZ());
+                LOGGER.warn("Deleting npc {} from invalid location X:{} Y:{} Z: {}", npc, object.getX(), object.getY(), object.getZ());
 
                 final Spawn spawn = npc.getSpawn();
                 if (nonNull(spawn)) {
@@ -635,6 +643,14 @@ public final class World {
 
     public static World getInstance() {
         return Singleton.INSTANCE;
+    }
+
+    public int getPlayersCountInSurroundRegions(WorldObject reference) {
+        var region = reference.getWorldRegion();
+        if(nonNull(region)) {
+            return region.getPlayersCountInSurround();
+        }
+        return 0;
     }
 
     private static class Singleton {

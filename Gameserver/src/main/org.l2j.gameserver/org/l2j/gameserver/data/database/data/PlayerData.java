@@ -19,9 +19,11 @@
 package org.l2j.gameserver.data.database.data;
 
 import org.l2j.commons.database.annotation.Column;
+import org.l2j.commons.database.annotation.Table;
 
 import java.time.LocalDate;
 
+@Table("characters")
 public class PlayerData {
 
     private int charId;
@@ -32,86 +34,98 @@ public class PlayerData {
     private String name;
     private byte level;
 
-    @Column("sex")
-    private boolean female;
-    private byte face;
-    private byte hairColor;
-    private byte hairStyle;
-    private int classId;
-
-    private long lastAccess;
-    private long exp;
-    private long expBeforeDeath;
-    private long sp;
-    private boolean wantsPeace;
-    private int heading;
-    private int reputation;
-    private int fame;
-    private int raidBossPoints;
-
-    @Column("pvpkills")
-    private int pvp;
-
-    @Column("pkkills")
-    private int pk;
-    private long onlineTime;
-    private boolean nobless;
-
-    @Column("clan_join_expiry_time")
-    private long clanJoinExpiryTime;
-
-    @Column("clan_create_expiry_time")
-    private long clanCreateExpiryTime;
-
-    @Column("pccafe_points")
-    private int pcCafePoints;
-
-    private int  clanId;
-
-    @Column("power_grade")
-    private int powerGrade;
-
-    @Column("vitality_points")
-    private int vitalityPoints;
-
-    private int subPledge;
-    private String title;
-    private int accessLevel;
-
-    @Column("title_color")
-    private int titleColr;
-
     private double maxHp;
-
     @Column("curHp")
-    private double currentHp;
-
+    private double hp;
     private double maxCp;
-
     @Column("curCp")
     private double currentCp;
-
     private double maxMp;
-
     @Column("curMp")
-    private double currentMp;
+    private double mp;
 
-    @Column("base_class")
-    private int baseClass;
+    private byte face;
+    private byte hairStyle;
+    private byte hairColor;
+    @Column("sex")
+    private boolean female;
 
-    private long deletetime;
-    private int apprentice;
-    private int sponsor;
-    private int race;
-
-    @Column("lvl_joined_academy")
-    private int levelJoinedAcademy;
+    private int heading;
     private int x;
     private int y;
     private int z;
+
+    private long exp;
+    private long expBeforeDeath;
+    private long sp;
+
+    private int reputation;
+    private int fame;
+    private int raidBossPoints;
+    @Column("pvpkills")
+    private int pvp;
+    @Column("pkkills")
+    private int pk;
+
+    private int  clanId;
+    private int race; // TODO change to enum
+    private int classId;
+    @Column("base_class")
+    private int baseClass;
+    //TODO check transform_id
+
+    private long deletetime;
+    //TODO check cancraft
+
+    private String title;
+    @Column("title_color")
+    private int titleColor;
+
+    private int accessLevel;
+    // TODO check online
+    private long onlineTime;
+    //TODO check clan_privs
+    // TODO check char_slot
+    private long lastAccess;
+    private boolean wantsPeace;
+
+    @Column("power_grade")
+    private int powerGrade;
+    private boolean nobless; // TODO should be removed
+    private int subPledge;
+    @Column("lvl_joined_academy")
+    private int levelJoinedAcademy;
+
+    private int apprentice;
+    private int sponsor;
+
+    @Column("clan_join_expiry_time")
+    private long clanJoinExpiryTime;
+    @Column("clan_create_expiry_time")
+    private long clanCreateExpiryTime;
+
     private int bookMarkSlot;
+    @Column("vitality_points")
+    private int vitalityPoints;
+
     private LocalDate createDate;
     private String language;
+    @Column("pccafe_points")
+    private int pcCafePoints;
+
+    public static PlayerData of(String accountName, String name, int classId, byte face, byte hairColor, byte hairStyle, boolean female) {
+        PlayerData data = new PlayerData();
+        data.accountName = accountName;
+        data.name = name;
+        data.classId = classId;
+        data.baseClass = classId;
+        data.face = face;
+        data.hairStyle = hairStyle;
+        data.hairColor = hairColor;
+        data.female = female;
+        data.level = 1;
+        return data;
+    }
 
     public int getCharId() {
         return charId;
@@ -165,16 +179,8 @@ public class PlayerData {
         return accountName;
     }
 
-    public void setAccountName(String accountName) {
-        this.accountName = accountName;
-    }
-
     public String getName() {
         return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 
     public long getLastAccess() {
@@ -187,10 +193,6 @@ public class PlayerData {
 
     public long getExpBeforeDeath() {
         return expBeforeDeath;
-    }
-
-    public byte getLevel() {
-        return level;
     }
 
     public long getSp() {
@@ -225,8 +227,16 @@ public class PlayerData {
         return pvp;
     }
 
+    public void setPvP(int pvp) {
+        this.pvp = pvp;
+    }
+
     public int getPk() {
         return pk;
+    }
+
+    public void setPk(int pk) {
+        this.pk = pk;
     }
 
     public long getOnlineTime() {
@@ -235,6 +245,10 @@ public class PlayerData {
 
     public boolean isNobless() {
         return nobless;
+    }
+
+    public void setNobless(boolean nobless) {
+        this.nobless = nobless;
     }
 
     public long getClanJoinExpiryTime() {
@@ -251,6 +265,10 @@ public class PlayerData {
 
     public int getClanId() {
         return clanId;
+    }
+
+    public void setClanId(int clanId) {
+        this.clanId = clanId;
     }
 
     public int getPowerGrade() {
@@ -274,15 +292,15 @@ public class PlayerData {
     }
 
     public int getTitleColor() {
-        return titleColr;
+        return titleColor;
     }
 
     public double getMaxtHp() {
         return maxHp;
     }
 
-    public double getCurrentHp() {
-        return currentHp;
+    public double getHp() {
+        return hp;
     }
 
     public double getCurrentCp() {
@@ -293,8 +311,8 @@ public class PlayerData {
         return maxCp;
     }
 
-    public double getCurrentMp() {
-        return currentMp;
+    public double getMp() {
+        return mp;
     }
 
     public double getMaxtMp() {
@@ -389,12 +407,72 @@ public class PlayerData {
         this.levelJoinedAcademy = level;
     }
 
-    public void setObjectId(int objectId) {
-        this.charId = objectId;
-    }
-
     public int getRace() {
         return race;
+    }
+
+    public void setMaxHp(double hp) {
+        this.maxHp = hp;
+    }
+
+    public void setHp(double hp) {
+        this.hp = hp;
+    }
+
+    public void setMaxMp(double mp) {
+        this.maxMp = mp;
+    }
+
+    public void setMp(double mp) {
+        this.mp = mp;
+    }
+
+    public void setRace(int race) {
+        this.race = race;
+    }
+
+    public void setTitleColor(int color) {
+        this.titleColor = color;
+    }
+
+    public void setX(int x) {
+        this.x = x;
+    }
+
+    public void setY(int y) {
+        this.y = y;
+    }
+
+    public void setZ(int z) {
+        this.z = z;
+    }
+
+    public byte getLevel() {
+        return level;
+    }
+
+    public void setLevel(byte level) {
+        this.level = level;
+    }
+
+    public void setExperience(long experience) {
+        this.exp = experience;
+    }
+
+    public void setSp(int sp) {
+        this.sp = sp;
+    }
+
+    public void setDeleteTime(long deleteTime) {
+        this.deletetime = deleteTime;
+    }
+
+    public void setFame(int fame) {
+        this.fame = fame;
+    }
+
+    public void addOnlineTime(long time) {
+        onlineTime += time;
     }
 }
 

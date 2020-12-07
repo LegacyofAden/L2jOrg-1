@@ -27,15 +27,21 @@ import org.l2j.commons.util.DeadLockDetector;
 import org.l2j.gameserver.cache.HtmCache;
 import org.l2j.gameserver.data.database.announce.manager.AnnouncementsManager;
 import org.l2j.gameserver.data.database.dao.PlayerDAO;
-import org.l2j.gameserver.data.sql.impl.*;
+import org.l2j.gameserver.data.sql.impl.ClanTable;
+import org.l2j.gameserver.data.sql.impl.CrestTable;
+import org.l2j.gameserver.data.sql.impl.PlayerNameTable;
+import org.l2j.gameserver.data.sql.impl.PlayerSummonTable;
 import org.l2j.gameserver.data.xml.*;
 import org.l2j.gameserver.data.xml.impl.*;
 import org.l2j.gameserver.datatables.ReportTable;
 import org.l2j.gameserver.datatables.SchemeBufferTable;
+import org.l2j.gameserver.engine.item.shop.MultisellEngine;
 import org.l2j.gameserver.engine.costume.CostumeEngine;
 import org.l2j.gameserver.engine.elemental.ElementalSpiritEngine;
 import org.l2j.gameserver.engine.events.EventEngine;
 import org.l2j.gameserver.engine.item.ItemEngine;
+import org.l2j.gameserver.engine.item.shop.L2Store;
+import org.l2j.gameserver.engine.item.shop.LCoinShop;
 import org.l2j.gameserver.engine.mail.MailEngine;
 import org.l2j.gameserver.engine.mission.MissionEngine;
 import org.l2j.gameserver.engine.rank.RankEngine;
@@ -60,7 +66,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Properties;
@@ -86,12 +91,6 @@ public class GameServer {
     public GameServer() throws Exception {
         final var serverLoadStart = Instant.now();
 
-        printSection("Identity Factory");
-        if (!IdFactory.getInstance().isInitialized()) {
-            LOGGER.error("Could not read object IDs from database. Please check your configuration.");
-            throw new Exception("Could not initialize the Identity factory!");
-        }
-
         printSection("World");
         World.init();
 
@@ -110,25 +109,26 @@ public class GameServer {
         printSection("Class Categories");
         CategoryManager.init();
 
-        printSection("Scripts");
+        printSection("Extensions Loaders");
+        ExtensionBoot.loaders();
         ScriptEngineManager.getInstance().executeScriptLoader();
 
         printSection("Spawns");
         SpawnsData.init();
-        DBSpawnManager.init();
+        GrandBossManager.getInstance();
+        BossManager.init();
         ThreadPool.executeForked(SpawnsData.getInstance()::spawnAll);
 
         printSection("Server Data");
         GlobalVariablesManager.init();
         ActionManager.init();
         BuyListData.init();
-        MultisellData.getInstance();
+        MultisellEngine.init();
         RecipeData.getInstance();
         ArmorSetsData.getInstance();
         FishingData.getInstance();
         HennaData.getInstance();
         ShuttleData.getInstance();
-        GraciaSeedsManager.getInstance();
 
         printSection("Features");
         AnnouncementsManager.init();
@@ -138,8 +138,8 @@ public class GameServer {
         VipEngine.init();
         ElementalSpiritEngine.init();
         TeleportEngine.init();
-        PrimeShopData.getInstance();
-        LCoinShopData.getInstance();
+        L2Store.init();
+        LCoinShop.init();
         CommissionManager.getInstance();
         LuckyGameData.getInstance();
         AttendanceRewardData.getInstance();
@@ -150,8 +150,7 @@ public class GameServer {
         BeautyShopData.getInstance();
         ExtendDropData.getInstance();
         ItemAuctionManager.getInstance();
-        SchemeBufferTable.getInstance();
-        GrandBossManager.getInstance();
+        SchemeBufferTable.init();
 
         printSection("Characters");
         ClassListData.getInstance();
@@ -166,19 +165,18 @@ public class GameServer {
         PetDataTable.getInstance();
         CubicData.getInstance();
         PlayerSummonTable.getInstance().init();
-        MentorManager.getInstance();
 
         printSection("Clans");
         ClanTable.init();
         ResidenceFunctionsData.getInstance();
         ClanHallManager.init();
         ClanHallAuctionManager.getInstance();
-        ClanEntryManager.getInstance();
+        ClanEntryManager.init();
         WalkingManager.getInstance();
         StaticObjectData.getInstance();
 
         printSection("Instance");
-        InstanceManager.getInstance();
+        InstanceManager.init();
 
         /*printSection("Olympiad");
         Hero.getInstance();*/
@@ -199,11 +197,11 @@ public class GameServer {
         VoteSystem.initialize();
 
         printSection("Siege");
-        SiegeManager.getInstance().getSieges();
+        SiegeManager.init();
         CastleManager.getInstance().activateInstances();
         SiegeScheduleData.getInstance();
         CastleManorManager.getInstance();
-        SiegeGuardManager.getInstance();
+        SiegeGuardManager.init();
         QuestManager.getInstance().report();
 
         var generalSettings = getSettings(GeneralSettings.class);
@@ -227,11 +225,7 @@ public class GameServer {
 
         Runtime.getRuntime().addShutdownHook(Shutdown.getInstance());
 
-        LOGGER.info("IdFactory: Free ObjectID's remaining: " + IdFactory.getInstance().size());
-
-        if ((Config.OFFLINE_TRADE_ENABLE || Config.OFFLINE_CRAFT_ENABLE) && Config.RESTORE_OFFLINERS) {
-            OfflineTradersTable.getInstance().restoreOfflineTraders();
-        }
+        LOGGER.info("IdFactory: Free ObjectID's remaining: {}", IdFactory.getInstance().size());
 
         var serverSettings = getSettings(ServerSettings.class);
         if (serverSettings.scheduleRestart()) {
@@ -258,24 +252,38 @@ public class GameServer {
         printSection("Server Configuration");
         Config.load(); // TODO remove this
 
-        printSection("Scripting Engine");
-        ScriptEngineManager.init();
-
         var settings = getSettings(ServerSettings.class);
-        ThreadPool.init(settings.threadPoolSize() ,settings.scheduledPoolSize());
+        printSection("Thread Pools");
+        ThreadPool.init(settings.threadPoolSize() ,settings.scheduledPoolSize(), settings.maxThreadPoolSize());
+
+        printSection("Identity Factory");
+        if (!IdFactory.getInstance().isInitialized()) {
+            LOGGER.error("Could not read object IDs from database. Please check your configuration.");
+            throw new Exception("Could not initialize the Identity factory!");
+        }
+
+        printSection("Extensions Initializers");
+        ScriptEngineManager.init();
+        ExtensionBoot.initializers();
 
         INSTANCE = new GameServer();
 
         ThreadPool.execute(AuthServerCommunication.getInstance());
+        scheduleDeadLockDetector(settings);
 
+        printSection("Extensions Pos Loaders");
+        ExtensionBoot.posLoaders();
+    }
+
+    private static void scheduleDeadLockDetector(ServerSettings settings) {
         if (settings.useDeadLockDetector()) {
-            DeadLockDetector deadLockDetector = new DeadLockDetector(Duration.ofSeconds(settings.deadLockDetectorInterval()), () -> {
-                if (settings.restartOnDeadLock()) {
-                    Broadcast.toAllOnlinePlayers("Server has stability issues - restarting now.");
+            ThreadPool.scheduleAtFixedDelay(new DeadLockDetector( () -> {
+                if(getSettings(ServerSettings.class).restartOnDeadLock()) {
+                    Broadcast.toAllOnlinePlayers("Server restarting now.");
+                    LOGGER.warn("Deadlock detected restarting the server");
                     Shutdown.getInstance().startShutdown(null, 60, true);
                 }
-            });
-            deadLockDetector.start();
+            }), settings.deadLockDetectorInterval(), settings.deadLockDetectorInterval(), TimeUnit.SECONDS);
         }
     }
 
@@ -313,25 +321,18 @@ public class GameServer {
 
                 fullVersion = String.format("%s: %s-%s (%s)", updateName, version, versionProperties.getProperty("revision"), versionProperties.getProperty("buildDate"));
                 var protocol = getSettings(ServerSettings.class).acceptedProtocols();
-                printSection("Server Info Version");
+                printSection("L2jOrg Server Info Version");
                 LOGGER.info("Update: .................. {}", updateName);
                 LOGGER.info("Protocol: ................ {}", protocol);
                 LOGGER.info("Build Version: ........... {}", version);
                 LOGGER.info("Build Revision: .......... {}", versionProperties.getProperty("revision"));
                 LOGGER.info("Build date: .............. {}", versionProperties.getProperty("buildDate"));
                 LOGGER.info("Compiler JDK version: .... {}", versionProperties.getProperty("compilerVersion"));
+                LOGGER.info("Report any bug at https://github.com/JoeAlisson/L2jOrg/issues");
             }
         } catch (IOException e) {
             LOGGER.warn(e.getLocalizedMessage(), e);
         }
-    }
-
-    private static void printSection(String s) {
-        LOGGER.info("{}=[ {} ]", "-".repeat(64 - s.length()), s);
-    }
-
-    public static GameServer getInstance() {
-        return INSTANCE;
     }
 
     public ConnectionHandler<GameClient> getConnectionHandler() {
@@ -345,5 +346,13 @@ public class GameServer {
         final long hours = TimeUnit.MILLISECONDS.toHours(uptime);
         uptime -= TimeUnit.HOURS.toMillis(hours);
         return String.format("%d Days, %d Hours, %d Minutes", days, hours, TimeUnit.MILLISECONDS.toMinutes(uptime));
+    }
+
+    private static void printSection(String s) {
+        LOGGER.info("{}=[ {} ]", "-".repeat(64 - s.length()), s);
+    }
+
+    public static GameServer getInstance() {
+        return INSTANCE;
     }
 }

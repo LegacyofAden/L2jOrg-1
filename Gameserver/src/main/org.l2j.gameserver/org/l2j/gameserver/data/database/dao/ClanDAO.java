@@ -156,4 +156,7 @@ public interface ClanDAO extends DAO<ClanData> {
 
     @Query("DELETE FROM clan_skills WHERE clan_id=:clanId: AND skill_id=:skillId:")
     void removeSkill(int clanId, int skillId);
+
+    @Query("UPDATE clan_data SET arena_progress = 0")
+    void resetArenaProgress();
 }

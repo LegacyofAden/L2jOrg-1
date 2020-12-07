@@ -29,7 +29,6 @@ import org.l2j.gameserver.network.Disconnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Task that handles illegal player actions.
  */
@@ -78,7 +77,7 @@ public final class IllegalPlayerActionTask implements Runnable {
                     return;
                 }
                 case KICK: {
-                    Disconnection.of(_actor).defaultSequence(false);
+                    Disconnection.of(_actor).logout(false);
                     break;
                 }
                 case KICKBAN: {

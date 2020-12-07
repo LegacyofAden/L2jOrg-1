@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='utf-8'?>
+<list xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns="http://l2j.org"
+      xsi:schemaLocation="http://l2j.org events.xsd" >
+
+    <event name="World Olympiad" class="org.l2j.gameserver.engine.olympiad.Olympiad">
+
+        <scheduler>
+            <schedule name="start-match" event="onStartMatch" dayOfWeek="1-6" hour="22" minute="00" repeat="true"/>
+            <schedule name="stop-match" event="onStopMatch" dayOfWeek="1-6" hour="23" minute="00" repeat="true"/>
+            <schedule name="new-season" event="onNewSeason" dayOfWeek="1" hour="12" minute="00" repeat="true"/>
+
+            <conditionalSchedule>
+                <run name="start-match" if="BETWEEN">
+                    <schedule>start-match</schedule>
+                    <schedule>stop-match</schedule>
+                </run>
+                <run name="new-season" if="HAVENT_RUN"/>
+            </conditionalSchedule>
+        </scheduler>
+
+        <config>
+            <olympiad-config min-participant="2" available-arena-instances="151 152">
+                <rewards>
+                    <winner id="91690" count="10"/>
+                    <loser id="91690"/>
+                    <hero-skills id="53100"/>
+                    <mark-of-battle-by-ranking from="0" until="1" value="200"/>
+                    <mark-of-battle-by-ranking from="2" until="10" value="80"/>
+                    <mark-of-battle-by-ranking from="11" until="25" value="50"/>
+                    <mark-of-battle-by-ranking from="26" until="50" value="30"/>
+                    <mark-of-battle-by-ranking from="51" until="100" value="15"/>
+                </rewards>
+            </olympiad-config>
+        </config>
+    </event>
+</list>

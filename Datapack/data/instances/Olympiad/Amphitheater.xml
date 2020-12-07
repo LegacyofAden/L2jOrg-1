@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<instance id="151" name="Amphitheater" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../instance.xsd">
+    <locations>
+        <enter type="NONE">
+            <location x="179273" y="177840" z="-12512" heading="33156"/>
+            <location x="178470" y="177840" z="-12512" heading="343"/>
+            <location x="178900" y="178150" z="-12512" heading="65119"/>
+        </enter>
+        <exit type="ORIGIN"/>
+    </locations>
+</instance>

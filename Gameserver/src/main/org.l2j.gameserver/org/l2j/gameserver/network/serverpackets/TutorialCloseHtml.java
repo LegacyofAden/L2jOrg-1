@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
 
@@ -27,7 +27,7 @@ import org.l2j.gameserver.network.ServerPacketId;
  *
  * @author HorridoJoho
  */
-@StaticPacket
+
 public class TutorialCloseHtml extends ServerPacket {
     public static final TutorialCloseHtml STATIC_PACKET = new TutorialCloseHtml();
 
@@ -35,8 +35,8 @@ public class TutorialCloseHtml extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.TUTORIAL_CLOSE_HTML);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.TUTORIAL_CLOSE_HTML, buffer );
     }
 
 }

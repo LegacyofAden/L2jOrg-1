@@ -18,48 +18,44 @@
  */
 package org.l2j.gameserver.network;
 
+import io.github.joealisson.mmocore.Buffer;
 import io.github.joealisson.mmocore.Client;
 import io.github.joealisson.mmocore.Connection;
 import org.l2j.commons.network.SessionKey;
 import org.l2j.commons.util.Util;
 import org.l2j.gameserver.Config;
 import org.l2j.gameserver.data.database.dao.AccountDAO;
-import org.l2j.gameserver.data.database.dao.ItemDAO;
-import org.l2j.gameserver.data.database.dao.PetDAO;
 import org.l2j.gameserver.data.database.dao.PlayerDAO;
 import org.l2j.gameserver.data.database.data.AccountData;
 import org.l2j.gameserver.data.sql.impl.ClanTable;
 import org.l2j.gameserver.data.sql.impl.PlayerNameTable;
 import org.l2j.gameserver.data.xml.SecondaryAuthManager;
 import org.l2j.gameserver.engine.mail.MailEngine;
-import org.l2j.gameserver.engine.vip.VipEngine;
 import org.l2j.gameserver.enums.CharacterDeleteFailType;
 import org.l2j.gameserver.instancemanager.CommissionManager;
-import org.l2j.gameserver.instancemanager.MentorManager;
-import org.l2j.gameserver.model.CharSelectInfoPackage;
 import org.l2j.gameserver.model.Clan;
+import org.l2j.gameserver.model.PlayerSelectInfo;
 import org.l2j.gameserver.model.actor.instance.Player;
+import org.l2j.gameserver.model.actor.instance.PlayerFactory;
 import org.l2j.gameserver.model.holders.ClientHardwareInfoHolder;
 import org.l2j.gameserver.network.authcomm.AuthServerCommunication;
 import org.l2j.gameserver.network.authcomm.gs2as.PlayerLogout;
 import org.l2j.gameserver.network.serverpackets.*;
-import org.l2j.gameserver.network.serverpackets.vip.ReceiveVipInfo;
 import org.l2j.gameserver.util.FloodProtectors;
 import org.l2j.gameserver.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.l2j.commons.database.DatabaseAccess.getDAO;
-import static org.l2j.commons.util.Util.hash;
-import static org.l2j.commons.util.Util.isNotEmpty;
+import static org.l2j.commons.util.Util.*;
 
 /**
  * Represents a client connected on Game Server.
@@ -68,61 +64,39 @@ import static org.l2j.commons.util.Util.isNotEmpty;
  * @author JoeAlisson
  */
 public final class GameClient extends Client<Connection<GameClient>> {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(GameClient.class);
-    protected static final Logger LOGGER_ACCOUNTING = LoggerFactory.getLogger("accounting");
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GameClient.class);
+    private static final Logger LOGGER_ACCOUNTING = LoggerFactory.getLogger("accounting");
 
     private final ReentrantLock activeCharLock = new ReentrantLock();
-
     private final FloodProtectors floodProtectors = new FloodProtectors(this);
 
     private final Crypt crypt;
-    private String accountName;
-    private SessionKey sessionId;
-    private Player player;
-    private ClientHardwareInfoHolder hardwareInfo;
-    private boolean isAuthedGG;
-    private CharSelectInfoPackage[] charSlotMapping = null;
-    private volatile boolean isDetached = false;
-
-    private boolean _protocol;
-
-    private int[][] trace;
-
+    private SessionKey sessionKey;
     private ConnectionState state;
     private AccountData account;
+    private Player player;
+    private ClientHardwareInfoHolder hardwareInfo;
+    private List<PlayerSelectInfo> playersInfo;
+
+    private boolean isAuthedGG;
+    private boolean _protocol;
+    private int[][] trace;
     private boolean secondaryAuthed;
+    private int activeSlot = -1;
 
     public GameClient(Connection<GameClient> connection) {
         super(connection);
-        crypt = new Crypt(this);
-    }
-
-    public static void deleteCharByObjId(int objId) {
-        if (objId < 0) {
-            return;
-        }
-
-        PlayerNameTable.getInstance().removeName(objId);
-        getDAO(PetDAO.class).deleteByOwner(objId);
-
-        var itemDAO = getDAO(ItemDAO.class);
-        itemDAO.deleteVariationsByOwner(objId);
-        itemDAO.deleteSpecialAbilitiesByOwner(objId);
-        itemDAO.deleteByOwner(objId);
-        getDAO(PlayerDAO.class).deleteById(objId);
+        crypt = new Crypt();
     }
 
     @Override
-    public int encryptedSize(int dataSize) {
-        return dataSize;
-    }
-    @Override
-    public byte[] encrypt(byte[] data, int offset, int size) {
+    public boolean encrypt(Buffer data, int offset, int size) {
         return crypt.encrypt(data, offset, size);
     }
 
     @Override
-    public boolean decrypt(byte[] data, int offset, int size) {
+    public boolean decrypt(Buffer data, int offset, int size) {
         return crypt.decrypt(data, offset, size);
     }
 
@@ -130,18 +104,16 @@ public final class GameClient extends Client<Connection<GameClient>> {
     protected void onDisconnection() {
         LOGGER_ACCOUNTING.debug("Client Disconnected: {}", this);
 
-        if(nonNull(getAccountName())) {
+        if(nonNull(account)) {
             if (state == ConnectionState.AUTHENTICATED) {
-                AuthServerCommunication.getInstance().removeAuthedClient(getAccountName());
+                AuthServerCommunication.getInstance().removeAuthedClient(account.getAccountName());
             } else {
-                AuthServerCommunication.getInstance().removeWaitingClient(getAccountName());
+                AuthServerCommunication.getInstance().removeWaitingClient(account.getAccountName());
             }
-            AuthServerCommunication.getInstance().sendPacket(new PlayerLogout(getAccountName()));
+            AuthServerCommunication.getInstance().sendPacket(new PlayerLogout(account.getAccountName()));
         }
-
-        if ((player == null) || !player.isInOfflineMode()) {
-            Disconnection.of(this).onDisconnection();
-        }
+        state = ConnectionState.DISCONNECTED;
+        Disconnection.of(this).onDisconnection();
     }
 
     @Override
@@ -150,16 +122,9 @@ public final class GameClient extends Client<Connection<GameClient>> {
         LOGGER_ACCOUNTING.debug("Client Connected: {}", this);
     }
 
-    public void closeNow() {
-        super.close(null);
-    }
-
-    public void close(ServerPacket packet) {
-        super.close(packet);
-    }
-
     public void close(boolean toLoginScreen) {
-        sendPacket(toLoginScreen ? ServerClose.STATIC_PACKET : LeaveWorld.STATIC_PACKET);
+        close(toLoginScreen ? ServerClose.STATIC_PACKET : LeaveWorld.STATIC_PACKET);
+        state = ConnectionState.DISCONNECTED;
     }
 
     public byte[] enableCrypt() {
@@ -188,33 +153,28 @@ public final class GameClient extends Client<Connection<GameClient>> {
         isAuthedGG = val;
     }
 
-    public boolean isAuthedGG() {
-        return isAuthedGG;
-    }
-
     public String getAccountName() {
-        return accountName;
+        return account.getAccountName();
     }
 
-    public synchronized void setAccountName(String accountName) {
-        this.accountName = accountName;
-
-        account = getDAO(AccountDAO.class).findById(this.accountName);
+    public synchronized void loadAccount(String accountName) {
+        account = getDAO(AccountDAO.class).findById(accountName);
         if(isNull(account)) {
-            createNewAccountData();
+            account = AccountData.of(accountName);
+            storeAccountData();
         }
     }
 
-    public SessionKey getSessionId() {
-        return sessionId;
+    public SessionKey getSessionKey() {
+        return sessionKey;
     }
 
-    public void setSessionId(SessionKey sk) {
-        sessionId = sk;
+    public void setSessionKey(SessionKey sk) {
+        sessionKey = sk;
     }
 
     public void sendPacket(ServerPacket packet) {
-        if (isDetached || isNull(packet)) {
+        if (isNull(packet) || state == ConnectionState.DISCONNECTED) {
             return;
         }
 
@@ -222,49 +182,35 @@ public final class GameClient extends Client<Connection<GameClient>> {
         packet.runImpl(player);
     }
 
+    public void sendPackets(ServerPacket... packets) {
+        if(nonNull(packets)) {
+            writePackets(List.of(packets));
+            for (ServerPacket packet : packets) {
+                packet.runImpl(player);
+            }
+        }
+    }
 
     public void sendPacket(SystemMessageId smId) {
         sendPacket(SystemMessage.getSystemMessage(smId));
     }
 
-    public boolean isDetached() {
-        return isDetached;
-    }
-
-    public void setDetached(boolean b) {
-        isDetached = b;
-    }
-
-    /**
-     * Method to handle character deletion
-     *
-     * @param characterSlot
-     * @return a byte:
-     * <li>-1: Error: No char was found for such charslot, caught exception, etc...
-     * <li>0: character is not member of any clan, proceed with deletion
-     * <li>1: character is member of a clan, but not clan leader
-     * <li>2: character is clan leader
-     */
-    public CharacterDeleteFailType markToDeleteChar(int characterSlot) {
-        final int objectId = getObjectIdForSlot(characterSlot);
-        if (objectId < 0) {
+    public CharacterDeleteFailType markToDeleteChar(int slot) {
+        PlayerSelectInfo info = getPlayerSelection(slot);
+        if (isNull(info)) {
             return CharacterDeleteFailType.UNKNOWN;
         }
 
-        if (MentorManager.getInstance().isMentor(objectId)) {
-            return CharacterDeleteFailType.MENTOR;
-        } else if (MentorManager.getInstance().isMentee(objectId)) {
-            return CharacterDeleteFailType.MENTEE;
-        } else if (CommissionManager.getInstance().hasCommissionItems(objectId)) {
+        if (CommissionManager.getInstance().hasCommissionItems(info.getObjectId())) {
             return CharacterDeleteFailType.COMMISSION;
-        } else if (MailEngine.getInstance().hasMailInProgress(objectId)) {
+        } else if (MailEngine.getInstance().hasMailInProgress(info.getObjectId())) {
             return CharacterDeleteFailType.MAIL;
         } else {
-            final int clanId = PlayerNameTable.getInstance().getClassIdById(objectId);
+            final int clanId = PlayerNameTable.getInstance().getClassIdById(info.getObjectId());
             if (clanId > 0) {
                 final Clan clan = ClanTable.getInstance().getClan(clanId);
                 if (clan != null) {
-                    if (clan.getLeaderId() == objectId) {
+                    if (clan.getLeaderId() == info.getObjectId()) {
                         return CharacterDeleteFailType.PLEDGE_MASTER;
                     }
                     return CharacterDeleteFailType.PLEDGE_MEMBER;
@@ -273,27 +219,30 @@ public final class GameClient extends Client<Connection<GameClient>> {
         }
 
         if (Config.DELETE_DAYS == 0) {
-            deleteCharByObjId(objectId);
+            PlayerFactory.deleteCharByObjId(info.getObjectId());
+            playersInfo.remove(slot);
         } else {
-            getDAO(PlayerDAO.class).updateDeleteTime(objectId, System.currentTimeMillis() + (Config.DELETE_DAYS * 86400000));
+            var deleteTime = Duration.ofDays(Config.DELETE_DAYS).toMillis() + System.currentTimeMillis();
+            info.setDeleteTime(deleteTime);
+            getDAO(PlayerDAO.class).updateDeleteTime(info.getObjectId(), deleteTime);
         }
 
-        LOGGER_ACCOUNTING.info("Delete, " + objectId + ", " + this);
+        LOGGER_ACCOUNTING.info("{} deleted {}", this, info.getObjectId());
         return CharacterDeleteFailType.NONE;
     }
 
-    public void restore(int characterSlot) {
-        final int objectId = getObjectIdForSlot(characterSlot);
-        if (objectId < 0) {
+    public void restore(int slot) {
+        var info = getPlayerSelection(slot);
+        if(isNull(info)) {
             return;
         }
-
-        getDAO(PlayerDAO.class).updateDeleteTime(objectId, 0);
-        LOGGER_ACCOUNTING.info("Restore {} [{}]", objectId, this);
+        info.setDeleteTime(0);
+        getDAO(PlayerDAO.class).updateDeleteTime(info.getObjectId(), 0);
+        LOGGER_ACCOUNTING.info("Restore {} [{}]", info.getObjectId(), this);
     }
 
-    public Player load(int characterSlot) {
-        final int objectId = getObjectIdForSlot(characterSlot);
+    public Player load(int slot) {
+        final int objectId = getObjectIdForSlot(slot);
         if (objectId < 0) {
             return null;
         }
@@ -301,12 +250,12 @@ public final class GameClient extends Client<Connection<GameClient>> {
         Player player = World.getInstance().findPlayer(objectId);
         if (player != null) {
             // exploit prevention, should not happens in normal way
-            if (player.isOnlineInt() == 1) {
-                LOGGER.error("Attempt of double login: {} ({}) {}", player.getName(), objectId, accountName);
+            if (player.isOnline()) {
+                LOGGER.error("Attempt of double login: {}", this);
             }
             if (player.getClient() != null)
             {
-                Disconnection.of(player).defaultSequence(false);
+                Disconnection.of(player).logout(false);
             }
             else
             {
@@ -316,45 +265,32 @@ public final class GameClient extends Client<Connection<GameClient>> {
             return null;
         }
 
-        player = Player.load(objectId);
+        player = PlayerFactory.loadPlayer(this, objectId);
         if (player == null) {
-            LOGGER.error("Could not restore in slot: {}", characterSlot);
+            LOGGER.error("Could not restore in slot: {}", slot);
         }
-
+        activeSlot = slot;
         return player;
     }
 
-    public void setCharSelection(CharSelectInfoPackage[] chars) {
-        charSlotMapping = chars;
-    }
-
-    public CharSelectInfoPackage getCharSelection(int charslot) {
-        if ((charSlotMapping == null) || (charslot < 0) || (charslot >= charSlotMapping.length)) {
+    public PlayerSelectInfo getPlayerSelection(int slot) {
+        if (isNull(playersInfo) || slot < 0 || slot >= playersInfo.size()) {
             return null;
         }
-        return charSlotMapping[charslot];
+        return playersInfo.get(slot);
     }
 
-    private int getObjectIdForSlot(int characterSlot) {
-        final CharSelectInfoPackage info = getCharSelection(characterSlot);
+    private int getObjectIdForSlot(int slot) {
+        final PlayerSelectInfo info = getPlayerSelection(slot);
         if (info == null) {
-            LOGGER.warn("{} tried to delete Character in slot {} but no characters exits at that slot.", this, characterSlot);
+            LOGGER.warn("{} tried select in slot {} but no characters exits at that slot.", this, slot);
             return -1;
         }
         return info.getObjectId();
     }
 
-    private AccountData getAccountData() {
+    public AccountData getAccount() {
         return account;
-    }
-
-    private void createNewAccountData() {
-        account = new AccountData();
-        account.setAccount(accountName);
-    }
-
-    public void sendActionFailed() {
-        sendPacket(ActionFailed.STATIC_PACKET);
     }
 
     public boolean isProtocolOk() {
@@ -373,10 +309,6 @@ public final class GameClient extends Client<Connection<GameClient>> {
         return trace;
     }
 
-    public Crypt getCrypt() {
-        return crypt;
-    }
-
     public ClientHardwareInfoHolder getHardwareInfo() {
         return hardwareInfo;
     }
@@ -393,51 +325,8 @@ public final class GameClient extends Client<Connection<GameClient>> {
         this.state = state;
     }
 
-    public long getVipPoints() {
-        return getAccountData().getVipPoints();
-    }
-
-    public long getVipTierExpiration() {
-        return getAccountData().getVipTierExpiration();
-    }
-
     public void storeAccountData() {
-        getDAO(AccountDAO.class).save(getAccountData());
-    }
-
-    public void updateVipPoints(long points) {
-        if(points == 0) {
-            return;
-        }
-        var currentVipTier = VipEngine.getInstance().getVipTier(getVipPoints());
-        getAccountData().updateVipPoints(points);
-        var newTier = VipEngine.getInstance().getVipTier(getVipPoints());
-        if(newTier != currentVipTier && nonNull(player)) {
-            player.setVipTier(newTier);
-            if(newTier > 0) {
-                getAccountData().setVipTierExpiration(Instant.now().plus(30, ChronoUnit.DAYS).toEpochMilli());
-                VipEngine.getInstance().manageTier(player);
-            } else {
-                getAccountData().setVipTierExpiration(0);
-            }
-        }
-        sendPacket(new ReceiveVipInfo());
-    }
-
-    public int getCoin() {
-        return getAccountData().getCoin();
-    }
-
-    public void updateCoin(int coins) {
-        getAccountData().updateCoins(coins);
-    }
-
-    public void setCoin(int coins) {
-        getAccountData().setCoins(coins);
-    }
-
-    public void setVipTierExpiration(long expiration) {
-        getAccountData().setVipTierExpiration(expiration);
+        getDAO(AccountDAO.class).save(account);
     }
 
     @Override
@@ -446,9 +335,9 @@ public final class GameClient extends Client<Connection<GameClient>> {
             final String address = getHostAddress();
             final ConnectionState state = getConnectionState();
             return switch (state) {
-                case CONNECTED, CLOSING, DISCONNECTED  -> "[IP: " + (address == null ? "disconnected" : address) + "]";
-                case AUTHENTICATED -> "[Account: " + accountName + " - IP: " + (address == null ? "disconnected" : address) + "]";
-                case IN_GAME, JOINING_GAME -> "[Player: " + (player == null ? "disconnected" : player.getName() + "[" + player.getObjectId() + "]") + " - Account: " + accountName + " - IP: " + (address == null ? "disconnected" : address) + "]";
+                case CONNECTED, CLOSING, DISCONNECTED  -> "[Account: " + account + " -IP: " + (isNullOrEmpty(address) ? "disconnected" : address) + "]";
+                case AUTHENTICATED -> "[Account: " + account + " - IP: " + (isNullOrEmpty(address) ? "disconnected" : address) + "]";
+                case IN_GAME, JOINING_GAME -> "[Player: " + (isNull(player) ? "disconnected" : player) + " - Account: " + account + " - IP: " + (isNullOrEmpty(address) ? "disconnected" : address) + "]";
             };
         } catch (NullPointerException e) {
             return "[Character read failed due to disconnect]";
@@ -462,7 +351,7 @@ public final class GameClient extends Client<Connection<GameClient>> {
     public boolean saveSecondPassword(String password) {
         if (hasSecondPassword()) {
             LOGGER.warn("{} forced savePassword", this);
-            Disconnection.of(this).defaultSequence(false);
+            Disconnection.of(this).logout(false);
             return false;
         }
 
@@ -497,7 +386,7 @@ public final class GameClient extends Client<Connection<GameClient>> {
     public boolean changeSecondPassword(String password, String newPassword) {
         if (!hasSecondPassword()) {
             LOGGER.warn("{} forced changePassword", this);
-            Disconnection.of(this).defaultSequence(false);
+            Disconnection.of(this).logout(false);
             return false;
         }
 
@@ -559,5 +448,42 @@ public final class GameClient extends Client<Connection<GameClient>> {
         } else {
             sendPacket(new Ex2ndPasswordCheck(Ex2ndPasswordCheck.PASSWORD_NEW));
         }
+    }
+
+    public int getPlayerCount() {
+        return nonNull(playersInfo) ? playersInfo.size() : 0;
+    }
+
+    public List<PlayerSelectInfo> getPlayersInfo() {
+        if(isNull(playersInfo)) {
+            synchronized (this) {
+                if(isNull(playersInfo)) {
+                    playersInfo = PlayerFactory.loadPlayersInfo(this);
+                }
+            }
+        }
+        return playersInfo;
+    }
+
+    public void addPlayerInfo(PlayerSelectInfo playerInfo) {
+        activeSlot = playersInfo.size();
+        playersInfo.add(playerInfo);
+    }
+
+    public int getActiveSlot() {
+        return activeSlot;
+    }
+
+    public int getPlayerInfoAccessLevel(int playerId) {
+        for (PlayerSelectInfo info : playersInfo) {
+            if(info.getObjectId() == playerId) {
+                return info.getAccessLevel();
+            }
+        }
+        throw new IllegalStateException("There is no info of player " + playerId);
+    }
+
+    public void detachPlayersInfo() {
+        playersInfo = null;
     }
 }

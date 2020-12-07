@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<list xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  xmlns="http://l2j.org" xsi:schemaLocation="http://l2j.org xsd/vip.xsd" >
+    
+    <vip tier="0" points-required="0" points-depreciated="0">
+        <bonus/>
+    </vip>
+    
+    <vip tier="1" points-required="80" points-depreciated="80">
+        <bonus skill="55024"/>
+    </vip>
+
+    <vip tier="2" points-required="800" points-depreciated="400">
+        <bonus skill="55025"/>
+    </vip>
+
+    <vip tier="3" points-required="2000" points-depreciated="660">
+        <bonus skill="55026"/>
+    </vip>
+
+    <vip tier="4" points-required="4000" points-depreciated="1320">
+        <bonus skill="55027"/>
+    </vip>
+
+    <vip tier="5" points-required="8000" points-depreciated="2640">
+        <bonus skill="55028"/>
+    </vip>
+
+    <vip tier="6" points-required="20000" points-depreciated="6000">
+        <bonus skill="55029"/>
+    </vip>
+
+    <vip tier="7" points-required="40000" points-depreciated="10000">
+        <bonus skill="55030"/>
+    </vip>
+	
+	<vip tier="8" points-required="60000" points-depreciated="15000">
+        <bonus skill="59723"/>
+    </vip>
+	
+	<vip tier="9" points-required="80000" points-depreciated="20000">
+        <bonus skill="59724"/>
+    </vip>
+	
+	<vip tier="10" points-required="130000" points-depreciated="30000">
+        <bonus skill="59725"/>
+    </vip>
+</list>

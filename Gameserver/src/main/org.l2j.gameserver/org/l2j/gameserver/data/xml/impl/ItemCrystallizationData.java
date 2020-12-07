@@ -25,7 +25,7 @@ import org.l2j.gameserver.enums.CrystallizationType;
 import org.l2j.gameserver.model.holders.CrystallizationDataHolder;
 import org.l2j.gameserver.model.holders.ItemChanceHolder;
 import org.l2j.gameserver.model.item.ItemTemplate;
-import org.l2j.gameserver.model.item.instance.Item;
+import org.l2j.gameserver.engine.item.Item;
 import org.l2j.gameserver.model.item.type.CrystalType;
 import org.l2j.gameserver.settings.ServerSettings;
 import org.l2j.gameserver.util.GameXmlReader;
@@ -108,7 +108,7 @@ public final class ItemCrystallizationData extends GameXmlReader {
 
         forEach(templateNode, "item", itemNode -> {
             var attrs = itemNode.getAttributes();
-            var itemId = parseInteger(attrs, "id");
+            var itemId = parseInt(attrs, "id");
             var itemCount = parseLong(attrs, "count");
             var itemChance = parseDouble(attrs, "chance");
             crystallizeRewards.add(new ItemChanceHolder(itemId, itemChance, itemCount));
@@ -118,7 +118,7 @@ public final class ItemCrystallizationData extends GameXmlReader {
 
     private void parseItem(Node node) {
         forEach(node, "item", itemNode -> {
-            final int id = parseInteger(itemNode.getAttributes(), "id");
+            final int id = parseInt(itemNode.getAttributes(), "id");
             items.put(id, new CrystallizationDataHolder(id, parseRewards(itemNode)));
         });
     }

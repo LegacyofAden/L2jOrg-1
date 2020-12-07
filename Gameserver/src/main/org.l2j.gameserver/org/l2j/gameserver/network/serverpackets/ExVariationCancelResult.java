@@ -18,11 +18,11 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 
-@StaticPacket
+
 public class ExVariationCancelResult extends ServerPacket {
     public static final ExVariationCancelResult STATIC_PACKET_SUCCESS = new ExVariationCancelResult(1);
     public static final ExVariationCancelResult STATIC_PACKET_FAILURE = new ExVariationCancelResult(0);
@@ -34,10 +34,10 @@ public class ExVariationCancelResult extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_VARIATION_CANCEL_RESULT);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_VARIATION_CANCEL_RESULT, buffer );
 
-        writeInt(_result);
+        buffer.writeInt(_result);
     }
 
 }

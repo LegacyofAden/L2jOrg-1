@@ -21,10 +21,10 @@ package org.l2j.gameserver.engine.mission;
 import io.github.joealisson.primitive.CHashIntMap;
 import io.github.joealisson.primitive.HashIntMap;
 import io.github.joealisson.primitive.IntMap;
+import org.l2j.commons.util.Util;
 import org.l2j.gameserver.data.database.data.MissionPlayerData;
 import org.l2j.gameserver.model.StatsSet;
 import org.l2j.gameserver.model.actor.instance.Player;
-import org.l2j.gameserver.model.base.ClassId;
 import org.l2j.gameserver.model.holders.ItemHolder;
 import org.l2j.gameserver.settings.ServerSettings;
 import org.l2j.gameserver.util.GameXmlReader;
@@ -35,14 +35,12 @@ import org.w3c.dom.Document;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 import static org.l2j.commons.configuration.Configurator.getSettings;
-import static org.l2j.commons.util.Util.isNullOrEmpty;
 
 /**
  * @author Sdw
@@ -81,23 +79,14 @@ public class MissionData extends GameXmlReader {
             final List<ItemHolder> items = new ArrayList<>(1);
 
             forEach(missionNode, "reward", itemNode -> {
-                final int itemId = parseInteger(itemNode.getAttributes(), "id");
-                final int itemCount = parseInteger(itemNode.getAttributes(), "count");
+                final int itemId = parseInt(itemNode.getAttributes(), "id");
+                final int itemCount = parseInt(itemNode.getAttributes(), "count");
                 items.add(new ItemHolder(itemId, itemCount));
             });
 
             set.set("rewards", items);
 
-            final List<ClassId> classRestriction = new ArrayList<>(1);
-            forEach(missionNode, "classes", classesNode -> {
-                if(isNullOrEmpty(classesNode.getTextContent())) {
-                    return;
-                }
-                classRestriction.addAll(Arrays.stream(classesNode.getTextContent().split(" ")).map(id -> ClassId.getClassId(Integer.parseInt(id))).collect(Collectors.toList()));
-            });
-
-            set.set("classRestriction", classRestriction);
-
+            forEach(missionNode, "classes", classesNode -> set.set("classRestriction", classesNode.getTextContent()));
             // Initial values in case handler doesn't exists
             set.set("handler", "");
             set.set("params", StatsSet.EMPTY_STATSET);
@@ -136,12 +125,30 @@ public class MissionData extends GameXmlReader {
     }
 
     public boolean isCompleted(Player player, int missionId) {
-        var mission = missions.get(missionId);
-        return nonNull(mission) && mission.stream().anyMatch(data -> data.isCompleted(player));
+        var missionsHolder = missions.get(missionId);
+
+        if(Util.isNullOrEmpty(missionsHolder)) {
+            return false;
+        }
+
+        for (MissionDataHolder data : missionsHolder) {
+            if(data.isCompleted(player)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int getAvailableMissionCount(Player player) {
-        return (int) missions.values().stream().flatMap(List::stream).filter(mission -> mission.isAvailable(player)).count();
+        int count = 0;
+        for (List<MissionDataHolder> missionsHolder : missions.values()) {
+            for (MissionDataHolder mission : missionsHolder) {
+                if(mission.isAvailable(player)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     public Collection<MissionDataHolder> getMissions(int id) {

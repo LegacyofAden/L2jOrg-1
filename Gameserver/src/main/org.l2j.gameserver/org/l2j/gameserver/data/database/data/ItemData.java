@@ -19,7 +19,10 @@
 package org.l2j.gameserver.data.database.data;
 
 import org.l2j.commons.database.annotation.Column;
+import org.l2j.commons.database.annotation.Table;
+import org.l2j.gameserver.enums.ItemLocation;
 
+@Table("items")
 public class ItemData {
 
     @Column("owner_id")
@@ -30,31 +33,27 @@ public class ItemData {
 
     @Column("item_id")
     private int itemId;
-
     private long count;
 
     @Column("enchant_level")
     private int enchantLevel;
-
-    private String loc;
+    private ItemLocation loc;
 
     @Column("loc_data")
     private int locData;
 
-    @Column("time_of_use")
-    private int timeOfUse;
+    private long time;
 
-    @Column("custom_type1")
-    private int customType1;
-
-    @Column("custom_type2")
-    private int customType2;
-
-    private float time;
-
+    private int ensoul;
+    @Column("special_ensoul")
+    private int specialEnsoul;
 
     public int getOwnerId() {
         return ownerId;
+    }
+
+    public void setOwnerId(int ownerId) {
+        this.ownerId = ownerId;
     }
 
     public int getObjectId() {
@@ -69,29 +68,73 @@ public class ItemData {
         return count;
     }
 
+    public void setCount(long count) {
+        this.count = count;
+    }
+
     public int getEnchantLevel() { return enchantLevel; }
 
-    public String getLoc() {
+    public void setEnchantLevel(int enchantLevel) {
+        this.enchantLevel = enchantLevel;
+    }
+
+    public ItemLocation getLoc() {
         return loc;
+    }
+
+    public void setLoc(ItemLocation loc) {
+        this.loc = loc;
     }
 
     public int getLocData() {
         return locData;
     }
 
-    public int getTimeOfUse() {
-        return timeOfUse;
+    public void setLocData(int locData) {
+        this.locData = locData;
     }
 
-    public int getCustomType1() {
-        return customType1;
-    }
-
-    public int getCustomType2() {
-        return customType2;
-    }
-
-    public float getTime() {
+    public long getTime() {
         return time;
+    }
+
+    public void setTime(long time) {
+        this.time = time;
+    }
+
+    public int getEnsoul() {
+        return ensoul;
+    }
+
+    public void setEnsoul(int id) {
+        this.ensoul = id;
+    }
+
+    public int getSpecialEnsoul() {
+        return specialEnsoul;
+    }
+
+    public void setSpecialEnsoul(int specialEnsoul) {
+        this.specialEnsoul = specialEnsoul;
+    }
+
+    public static ItemData of(int objectId, int itemId) {
+        var data = new ItemData();
+        data.objectId = objectId;
+        data.itemId = itemId;
+        data.loc = ItemLocation.VOID;
+        data.count = 1;
+        return data;
+    }
+
+    public static ItemData of(ItemOnGroundData onGroundData) {
+        var data = new ItemData();
+        data.objectId = onGroundData.getObjectId();
+        data.itemId = onGroundData.getItemId();
+        data.count = onGroundData.getCount();
+        data.enchantLevel = onGroundData.getEnchantLevel();
+        data.ensoul = onGroundData.getEnsoul();
+        data.specialEnsoul = onGroundData.getSpecialEnsoul();
+        return data;
     }
 }

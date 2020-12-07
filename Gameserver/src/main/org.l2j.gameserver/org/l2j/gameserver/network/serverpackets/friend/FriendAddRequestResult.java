@@ -18,6 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets.friend;
 
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
@@ -30,7 +31,7 @@ public class FriendAddRequestResult extends ServerPacket {
     private final int _result;
     private final int _charId;
     private final String _charName;
-    private final int _isOnline;
+    private final boolean _isOnline;
     private final int _charObjectId;
     private final int _charLevel;
     private final int _charClassId;
@@ -39,24 +40,24 @@ public class FriendAddRequestResult extends ServerPacket {
         _result = result;
         _charId = activeChar.getObjectId();
         _charName = activeChar.getName();
-        _isOnline = activeChar.isOnlineInt();
+        _isOnline = activeChar.isOnline();
         _charObjectId = activeChar.getObjectId();
         _charLevel = activeChar.getLevel();
         _charClassId = activeChar.getActiveClass();
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.FRIEND_ADD_REQUEST_RESULT);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.FRIEND_ADD_REQUEST_RESULT, buffer );
 
-        writeInt(_result);
-        writeInt(_charId);
-        writeString(_charName);
-        writeInt(_isOnline);
-        writeInt(_charObjectId);
-        writeInt(_charLevel);
-        writeInt(_charClassId);
-        writeShort((short) 0x00); // Always 0 on retail
+        buffer.writeInt(_result);
+        buffer.writeInt(_charId);
+        buffer.writeString(_charName);
+        buffer.writeInt(_isOnline);
+        buffer.writeInt(_charObjectId);
+        buffer.writeInt(_charLevel);
+        buffer.writeInt(_charClassId);
+        buffer.writeShort(0x00); // Always 0 on retail
     }
 
 }

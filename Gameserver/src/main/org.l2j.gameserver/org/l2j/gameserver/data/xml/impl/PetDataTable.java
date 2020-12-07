@@ -18,8 +18,9 @@
  */
 package org.l2j.gameserver.data.xml.impl;
 
+import org.l2j.gameserver.data.database.dao.PetDAO;
 import org.l2j.gameserver.enums.MountType;
-import org.l2j.gameserver.model.PetData;
+import org.l2j.gameserver.model.PetTemplate;
 import org.l2j.gameserver.model.PetLevelData;
 import org.l2j.gameserver.model.StatsSet;
 import org.l2j.gameserver.settings.ServerSettings;
@@ -36,6 +37,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.l2j.commons.configuration.Configurator.getSettings;
+import static org.l2j.commons.database.DatabaseAccess.getDAO;
 import static org.l2j.commons.util.Util.zeroIfNullOrElse;
 
 
@@ -48,7 +50,7 @@ import static org.l2j.commons.util.Util.zeroIfNullOrElse;
 public final class PetDataTable extends GameXmlReader {
     private static final Logger LOGGER = LoggerFactory.getLogger(PetDataTable.class);
 
-    private final Map<Integer, PetData> pets = new HashMap<>();
+    private final Map<Integer, PetTemplate> pets = new HashMap<>();
 
     private PetDataTable() {
         load();
@@ -56,7 +58,7 @@ public final class PetDataTable extends GameXmlReader {
 
     @Override
     protected Path getSchemaFilePath() {
-        return getSettings(ServerSettings.class).dataPackDirectory().resolve("data/xsd/PetData.xsd");
+        return getSettings(ServerSettings.class).dataPackDirectory().resolve("data/stats/pets/pets.xsd");
     }
 
     /**
@@ -84,10 +86,10 @@ public final class PetDataTable extends GameXmlReader {
         final Node n = doc.getFirstChild();
         for (Node d = n.getFirstChild(); d != null; d = d.getNextSibling()) {
             if (d.getNodeName().equals("pet")) {
-                final int npcId = parseInteger(d.getAttributes(), "id");
-                final int itemId = parseInteger(d.getAttributes(), "itemId");
+                final int npcId = parseInt(d.getAttributes(), "id");
+                final int itemId = parseInt(d.getAttributes(), "itemId");
                 // index ignored for now
-                final PetData data = new PetData(npcId, itemId);
+                final PetTemplate data = new PetTemplate(npcId, itemId);
                 for (Node p = d.getFirstChild(); p != null; p = p.getNextSibling()) {
                     if (p.getNodeName().equals("set")) {
                         attrs = p.getAttributes();
@@ -97,18 +99,18 @@ public final class PetDataTable extends GameXmlReader {
                                 data.addFood(Integer.valueOf(foodId));
                             }
                         } else if ("load".equals(type)) {
-                            data.setLoad(parseInteger(attrs, "val"));
+                            data.setLoad(parseInt(attrs, "val"));
                         } else if ("hungry_limit".equals(type)) {
-                            data.setHungryLimit(parseInteger(attrs, "val"));
+                            data.setHungryLimit(parseInt(attrs, "val"));
                         } else if ("sync_level".equals(type)) {
-                            data.setSyncLevel(parseInteger(attrs, "val") == 1);
+                            data.setSyncLevel(parseInt(attrs, "val") == 1);
                         }
                         // evolve ignored
                     } else if (p.getNodeName().equals("skills")) {
                         for (Node s = p.getFirstChild(); s != null; s = s.getNextSibling()) {
                             if (s.getNodeName().equals("skill")) {
                                 attrs = s.getAttributes();
-                                data.addNewSkill(parseInteger(attrs, "skillId"), parseInteger(attrs, "skillLvl"), parseInteger(attrs, "minLvl"));
+                                data.addNewSkill(parseInt(attrs, "skillId"), parseInt(attrs, "skillLvl"), parseInt(attrs, "minLvl"));
                             }
                         }
                     } else if (p.getNodeName().equals("stats")) {
@@ -145,12 +147,8 @@ public final class PetDataTable extends GameXmlReader {
         }
     }
 
-    /**
-     * @param itemId
-     * @return
-     */
-    public PetData getPetDataByItemId(int itemId) {
-        for (PetData data : pets.values()) {
+    public PetTemplate getPetDataByItemId(int itemId) {
+        for (PetTemplate data : pets.values()) {
             if (data.getItemId() == itemId) {
                 return data;
             }
@@ -166,7 +164,7 @@ public final class PetDataTable extends GameXmlReader {
      * @return the pet's parameters for the given Id and level.
      */
     public PetLevelData getPetLevelData(int petId, int petLevel) {
-        final PetData pd = getPetData(petId);
+        final PetTemplate pd = getPetTemplate(petId);
         if (pd != null) {
             if (petLevel > pd.getMaxLevel()) {
                 return pd.getPetLevelData(pd.getMaxLevel());
@@ -182,9 +180,9 @@ public final class PetDataTable extends GameXmlReader {
      * @param petId the pet Id.
      * @return the pet data
      */
-    public PetData getPetData(int petId) {
+    public PetTemplate getPetTemplate(int petId) {
         if (!pets.containsKey(petId)) {
-            LOGGER.info(getClass().getSimpleName() + ": Missing pet data for npcid: " + petId);
+            LOGGER.info("Missing pet data for npc id {}", petId);
         }
         return pets.get(petId);
     }
@@ -200,7 +198,15 @@ public final class PetDataTable extends GameXmlReader {
     }
 
     public int getPetItemByNpc(int npcId) {
-        return zeroIfNullOrElse(pets.get(npcId), PetData::getItemId);
+        return zeroIfNullOrElse(pets.get(npcId), PetTemplate::getItemId);
+    }
+
+    public boolean doesPetNameExist(String name, int petNpcId) {
+        return getDAO(PetDAO.class).existsPetName(name, getInstance().getPetItemByNpc(petNpcId));
+    }
+
+    public boolean isValidPetName(String name) {
+        return getSettings(ServerSettings.class).acceptPetName(name);
     }
 
     public static PetDataTable getInstance() {

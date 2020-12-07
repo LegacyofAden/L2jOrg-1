@@ -18,29 +18,29 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
 
 /**
  * @author JoeAlisson
  */
-@StaticPacket
+
 public class TradeDone extends ServerPacket {
 
     public static final TradeDone CANCELLED = new TradeDone(false);
     public static final TradeDone COMPLETED = new TradeDone(true);
 
-    private final boolean completed;
+    private final boolean success;
 
-    private TradeDone(boolean completed) {
-        this.completed = completed;
+    private TradeDone(boolean success) {
+        this.success = success;
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.TRADE_DONE);
-        writeInt(completed);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.TRADE_DONE, buffer );
+        buffer.writeInt(success);
     }
 
 }

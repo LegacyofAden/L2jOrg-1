@@ -20,7 +20,7 @@ package org.l2j.gameserver.network.clientpackets;
 
 import org.l2j.gameserver.engine.item.EnchantItemEngine;
 import org.l2j.gameserver.model.actor.request.EnchantItemRequest;
-import org.l2j.gameserver.model.item.instance.Item;
+import org.l2j.gameserver.engine.item.Item;
 import org.l2j.gameserver.network.SystemMessageId;
 import org.l2j.gameserver.network.serverpackets.EnchantResult;
 import org.l2j.gameserver.util.GameUtils;
@@ -53,7 +53,7 @@ public final class RequestEnchantItem extends ClientPacket {
         request.setEnchantingItem(objectId);
         request.setProcessing(true);
 
-        if (!player.isOnline() || client.isDetached()) {
+        if (!player.isOnline()) {
             player.removeRequest(EnchantItemRequest.class);
             return;
         }

@@ -18,14 +18,14 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 
 /**
  * @author Gnacik
  **/
-@StaticPacket
+
 public class ExBirthdayPopup extends ServerPacket {
     public static final ExBirthdayPopup STATIC_PACKET = new ExBirthdayPopup();
 
@@ -33,8 +33,8 @@ public class ExBirthdayPopup extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_NOTIFY_BIRTHDAY);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_NOTIFY_BIRTHDAY, buffer );
     }
 
 }

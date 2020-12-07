@@ -19,7 +19,8 @@
 package org.l2j.gameserver.util;
 
 import org.l2j.commons.xml.XmlReader;
-import org.l2j.gameserver.Config;
+import org.l2j.gameserver.engine.skill.api.Skill;
+import org.l2j.gameserver.engine.skill.api.SkillEngine;
 import org.l2j.gameserver.model.Location;
 import org.l2j.gameserver.model.holders.ItemHolder;
 import org.l2j.gameserver.model.holders.MinionHolder;
@@ -60,7 +61,7 @@ public abstract class GameXmlReader extends XmlReader {
      * @return {@code false} if it fails to find the directory, {@code true} otherwise
      */
     protected boolean parseDatapackDirectory(String path, boolean recursive) {
-        return parseDirectory(new File(Config.DATAPACK_ROOT, path), recursive);
+        return parseDirectory(new File(getSettings(ServerSettings.class).dataPackDirectory().toFile(), path), recursive);
     }
 
     /**
@@ -77,11 +78,11 @@ public abstract class GameXmlReader extends XmlReader {
                     break;
                 }
                 case "skill": {
-                    parameters.put(parseString(attrs, "name"), new SkillHolder(parseInteger(attrs, "id"), parseInteger(attrs, "level")));
+                    parameters.put(parseString(attrs, "name"), new SkillHolder(parseInt(attrs, "id"), parseInt(attrs, "level")));
                     break;
                 }
                 case "location": {
-                    parameters.put(parseString(attrs, "name"), new Location(parseInteger(attrs, "x"), parseInteger(attrs, "y"), parseInteger(attrs, "z"), parseInteger(attrs, "heading", 0)));
+                    parameters.put(parseString(attrs, "name"), new Location(parseInt(attrs, "x"), parseInt(attrs, "y"), parseInt(attrs, "z"), parseInt(attrs, "heading", 0)));
                     break;
                 }
                 case "minions": {
@@ -89,7 +90,7 @@ public abstract class GameXmlReader extends XmlReader {
                     for (Node minions_node = parameters_node.getFirstChild(); minions_node != null; minions_node = minions_node.getNextSibling()) {
                         if (minions_node.getNodeName().equalsIgnoreCase("npc")) {
                             attrs = minions_node.getAttributes();
-                            minions.add(new MinionHolder(parseInteger(attrs, "id"), parseInteger(attrs, "count"), parseInteger(attrs, "respawnTime"), parseInteger(attrs, "weightPoint")));
+                            minions.add(new MinionHolder(parseInt(attrs, "id"), parseInt(attrs, "count"), parseInt(attrs, "respawnTime"), parseInt(attrs, "weightPoint")));
                         }
                     }
 
@@ -103,17 +104,22 @@ public abstract class GameXmlReader extends XmlReader {
         return parameters;
     }
 
-    protected Location parseLocation(Node n) {
+    public Location parseLocation(Node n) {
         final NamedNodeMap attrs = n.getAttributes();
-        final int x = parseInteger(attrs, "x");
-        final int y = parseInteger(attrs, "y");
-        final int z = parseInteger(attrs, "z");
-        final int heading = parseInteger(attrs, "heading", 0);
+        final int x = parseInt(attrs, "x");
+        final int y = parseInt(attrs, "y");
+        final int z = parseInt(attrs, "z");
+        final int heading = parseInt(attrs, "heading", 0);
         return new Location(x, y, z, heading);
     }
 
-    protected ItemHolder parseItemHolder(Node n) {
+    public ItemHolder parseItemHolder(Node n) {
         final var attrs = n.getAttributes();
-        return new ItemHolder(parseInt(attrs, "id"), parselong(attrs, "count"), parseInt(attrs, "enchant", 0));
+        return new ItemHolder(parseInt(attrs, "id"), parseLong(attrs, "count"), parseInt(attrs, "enchant", 0));
+    }
+
+    public Skill parseSkillInfo(Node node) {
+        final var attrs = node.getAttributes();
+        return SkillEngine.getInstance().getSkill(parseInt(attrs, "id"), parseInt(attrs, "level"));
     }
 }

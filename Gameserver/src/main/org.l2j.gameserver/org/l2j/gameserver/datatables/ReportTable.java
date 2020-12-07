@@ -49,6 +49,7 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.File;
@@ -101,6 +102,8 @@ public final class ReportTable {
                 }
 
                 final SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
+                parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, ""); // Compliant
+                parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, ""); // compliant
                 parser.parse(punishments, new PunishmentsLoader());
             } catch (Exception e) {
                 LOGGER.warn("Could not load punishments from /config/BotReportPunishments.xml", e);
@@ -164,19 +167,17 @@ public final class ReportTable {
      */
     public boolean reportBot(Player reporter) {
         final WorldObject target = reporter.getTarget();
-        if (!isPlayer(target) || target.getObjectId() == reporter.getObjectId()) {
+        if (!(target instanceof Player bot) || target.getObjectId() == reporter.getObjectId()) {
             return false;
         }
 
-        final Player bot = ((Player) target);
+        if (reporter.isInOlympiadMode()) {
+            reporter.sendPacket(SystemMessageId.THIS_CHARACTER_CANNOT_MAKE_A_REPORT_YOU_CANNOT_MAKE_A_REPORT_WHILE_LOCATED_INSIDE_A_PEACE_ZONE_OR_A_BATTLEGROUND_WHILE_YOU_ARE_AN_OPPOSING_CLAN_MEMBER_DURING_A_CLAN_WAR_OR_WHILE_PARTICIPATING_IN_THE_OLYMPIAD);
+            return false;
+        }
 
         if (bot.isInsideZone(ZoneType.PEACE) || bot.isInsideZone(ZoneType.PVP)) {
             reporter.sendPacket(SystemMessageId.YOU_CANNOT_REPORT_A_CHARACTER_WHO_IS_IN_A_PEACE_ZONE_OR_A_BATTLEGROUND);
-            return false;
-        }
-
-        if (bot.isInOlympiadMode()) {
-            reporter.sendPacket(SystemMessageId.THIS_CHARACTER_CANNOT_MAKE_A_REPORT_YOU_CANNOT_MAKE_A_REPORT_WHILE_LOCATED_INSIDE_A_PEACE_ZONE_OR_A_BATTLEGROUND_WHILE_YOU_ARE_AN_OPPOSING_CLAN_MEMBER_DURING_A_CLAN_WAR_OR_WHILE_PARTICIPATING_IN_THE_OLYMPIAD);
             return false;
         }
 
@@ -373,7 +374,7 @@ public final class ReportTable {
             if(manager.hasPunishment(reportedId, PunishmentAffect.CHARACTER, PunishmentType.CHAT_BAN)) {
                 manager.stopPunishment(reportedId, PunishmentAffect.CHARACTER, PunishmentType.CHAT_BAN);
             }
-            manager.startPunishment(new PunishmentTask(0, reportedId, PunishmentAffect.CHARACTER, PunishmentType.CHAT_BAN, Instant.now().plus(14, ChronoUnit.HOURS).toEpochMilli(), "Chat banned bot report", "system", false));
+            manager.startPunishment(new PunishmentTask(reportedId, PunishmentAffect.CHARACTER, PunishmentType.CHAT_BAN, Instant.now().plus(14, ChronoUnit.HOURS).toEpochMilli(), "Chat banned bot report", "system"));
         }
 
     }

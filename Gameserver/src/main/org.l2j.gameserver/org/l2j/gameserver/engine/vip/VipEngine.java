@@ -20,11 +20,12 @@ package org.l2j.gameserver.engine.vip;
 
 import io.github.joealisson.primitive.HashIntMap;
 import io.github.joealisson.primitive.IntMap;
-import org.l2j.gameserver.data.xml.impl.PrimeShopData;
+import org.l2j.gameserver.engine.item.shop.L2Store;
 import org.l2j.gameserver.engine.skill.api.SkillEngine;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.model.events.EventType;
 import org.l2j.gameserver.model.events.Listeners;
+import org.l2j.gameserver.model.events.impl.character.player.OnPlayerLoad;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerLogin;
 import org.l2j.gameserver.model.events.listeners.ConsumerEventListener;
 import org.l2j.gameserver.network.serverpackets.ExBRNewIconCashBtnWnd;
@@ -49,20 +50,35 @@ import static org.l2j.commons.configuration.Configurator.getSettings;
 public final class VipEngine extends GameXmlReader {
 
     private static final byte VIP_MAX_TIER = 10;
-    private IntMap<VipInfo> vipTiers = new HashIntMap<>(11);
+    private final IntMap<VipInfo> vipTiers = new HashIntMap<>(11);
+    private final ConsumerEventListener vipLoginListener = new ConsumerEventListener(null, EventType.ON_PLAYER_LOGIN, (Consumer<OnPlayerLogin>) this::onVipLogin, this);
 
     private VipEngine() {
         var listeners = Listeners.players();
 
-        listeners.addListener(new ConsumerEventListener(listeners, EventType.ON_PLAYER_LOGIN, (Consumer<OnPlayerLogin>) (event) -> {
-            final var player = event.getPlayer();
-            if(player.getVipTier() > 0) {
-                manageTier(player);
-            } else {
-                player.sendPacket(new ReceiveVipInfo());
-                player.sendPacket(ExBRNewIconCashBtnWnd.NOT_SHOW);
-            }
-        }, this));
+        listeners.addListener(new ConsumerEventListener(listeners, EventType.ON_PLAYER_LOAD, (Consumer<OnPlayerLoad>) this::onPlayerLoaded, this));
+    }
+
+    private void onPlayerLoaded(OnPlayerLoad event) {
+        final var player = event.getPlayer();
+        player.setVipTier(getVipTier(player));
+        if(player.getVipTier() > 0) {
+            manageTier(player);
+            player.addListener(vipLoginListener);
+        } else {
+            player.sendPacket(new ReceiveVipInfo());
+            player.sendPacket(ExBRNewIconCashBtnWnd.NOT_SHOW);
+        }
+    }
+
+    private void onVipLogin(OnPlayerLogin event) {
+        final var player = event.getPlayer();
+        if(L2Store.getInstance().canReceiveVipGift(player)) {
+            player.sendPacket(ExBRNewIconCashBtnWnd.SHOW);
+        } else {
+            player.sendPacket(ExBRNewIconCashBtnWnd.NOT_SHOW);
+        }
+        player.removeListener(vipLoginListener);
     }
 
     public void manageTier(Player player) {
@@ -86,11 +102,6 @@ public final class VipEngine extends GameXmlReader {
             if(nonNull(skill)) {
                 player.addSkill(skill);
             }
-        }
-        if(PrimeShopData.getInstance().canReceiveVipGift(player)) {
-            player.sendPacket(ExBRNewIconCashBtnWnd.SHOW);
-        } else {
-            player.sendPacket(ExBRNewIconCashBtnWnd.NOT_SHOW);
         }
     }
 
@@ -123,8 +134,8 @@ public final class VipEngine extends GameXmlReader {
         if(nonNull(bonusNode)) {
             attributes = bonusNode.getAttributes();
             vipInfo.setSilverCoinChance(parseFloat(attributes, "silver-coin-acquisition"));
-            vipInfo.setRustyCoinChance(parseFloat(attributes, "rusty-coin-acquisition"));
-            vipInfo.setSkill(parseInteger(attributes, "skill"));
+            vipInfo.setGoldCoinChance(parseFloat(attributes, "gold-coin-acquisition"));
+            vipInfo.setSkill(parseInt(attributes, "skill"));
         }
     }
 
@@ -166,7 +177,7 @@ public final class VipEngine extends GameXmlReader {
     }
 
     public float getRustyCoinDropChance(Player player) {
-        return getVipInfo(player).getRustyCoinChance();
+        return getVipInfo(player).getGoldCoinChance();
     }
 
     public boolean checkVipTierExpiration(Player player) {

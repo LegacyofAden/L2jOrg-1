@@ -132,7 +132,7 @@ public final class FloodProtectorAction {
      * Kick player from game (close network connection).
      */
     private void kickPlayer() {
-        Disconnection.of(_client).defaultSequence(false);
+        Disconnection.of(_client).logout(false);
         log("kicked for flooding");
     }
 
@@ -166,10 +166,9 @@ public final class FloodProtectorAction {
         output.append(": ");
         String address = null;
         try {
-            if (!_client.isDetached()) {
-                address = _client.getHostAddress();
-            }
+               address = _client.getHostAddress();
         } catch (Exception e) {
+            LOGGER.warn(e.getMessage(), e);
         }
 
         final ConnectionState state = _client.getConnectionState();

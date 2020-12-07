@@ -18,14 +18,14 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 
 /**
  * @author devScarlet, mrTJO
  */
-@StaticPacket
+
 public class ExPlayScene extends ServerPacket {
     public static final ExPlayScene STATIC_PACKET = new ExPlayScene();
 
@@ -33,8 +33,8 @@ public class ExPlayScene extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_PLAY_SCENE);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_PLAY_SCENE, buffer );
     }
 
 }

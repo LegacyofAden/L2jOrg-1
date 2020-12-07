@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns="http://l2j.org"
+      xsi:schemaLocation="http://l2j.org multisell.xsd">
+    <npcs>
+        34292 <!-- Chef Monkey -->
+    </npcs>
+    <item>
+        <ingredient id="3031" count="250"/> <!-- Spirit Ore -->
+        <production id="90168"/> <!-- Monkey Bait -->
+    </item>
+    <item>
+        <ingredient id="3031" count="250"/> <!-- Spirit Ore -->
+        <production id="90169"/> <!-- Monkey Bait -->
+    </item>
+    <item>
+        <ingredient id="3031" count="250"/> <!-- Spirit Ore -->
+        <production id="90170"/> <!-- Monkey Bait -->
+    </item>
+</list>

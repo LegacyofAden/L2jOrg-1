@@ -18,17 +18,17 @@
  */
 package org.l2j.gameserver.util;
 
-import org.l2j.commons.database.DatabaseFactory;
 import org.l2j.commons.threading.ThreadPool;
+import org.l2j.gameserver.data.database.dao.PetDAO;
 import org.l2j.gameserver.data.xml.impl.NpcData;
 import org.l2j.gameserver.data.xml.impl.PetDataTable;
-import org.l2j.gameserver.model.PetData;
+import org.l2j.gameserver.model.PetTemplate;
 import org.l2j.gameserver.model.actor.Npc;
 import org.l2j.gameserver.model.actor.Summon;
 import org.l2j.gameserver.model.actor.instance.Pet;
 import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.model.actor.templates.NpcTemplate;
-import org.l2j.gameserver.model.item.instance.Item;
+import org.l2j.gameserver.engine.item.Item;
 import org.l2j.gameserver.network.SystemMessageId;
 import org.l2j.gameserver.network.serverpackets.InventoryUpdate;
 import org.l2j.gameserver.network.serverpackets.MagicSkillLaunched;
@@ -37,8 +37,7 @@ import org.l2j.gameserver.network.serverpackets.SystemMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import static org.l2j.commons.database.DatabaseAccess.getDAO;
 
 
 /**
@@ -70,7 +69,7 @@ public final class Evolve {
         final int oldY = currentPet.getY();
         final int oldZ = currentPet.getZ();
 
-        final PetData oldData = PetDataTable.getInstance().getPetDataByItemId(itemIdtake);
+        final PetTemplate oldData = PetDataTable.getInstance().getPetDataByItemId(itemIdtake);
 
         if (oldData == null) {
             return false;
@@ -82,13 +81,13 @@ public final class Evolve {
             return false;
         }
 
-        final PetData petData = PetDataTable.getInstance().getPetDataByItemId(itemIdgive);
+        final PetTemplate petTemplate = PetDataTable.getInstance().getPetDataByItemId(itemIdgive);
 
-        if (petData == null) {
+        if (petTemplate == null) {
             return false;
         }
 
-        final int npcID = petData.getNpcId();
+        final int npcID = petTemplate.getNpcId();
 
         if (npcID == 0) {
             return false;
@@ -131,7 +130,7 @@ public final class Evolve {
         player.sendPacket(SystemMessageId.SUMMONING_YOUR_PET);
         petSummon.spawnMe(oldX, oldY, oldZ);
         petSummon.startFeed();
-        item.setEnchantLevel(petSummon.getLevel());
+        item.changeEnchantLevel(petSummon.getLevel());
 
         ThreadPool.schedule(new EvolveFinalizer(player, petSummon), 900);
 
@@ -159,17 +158,17 @@ public final class Evolve {
             oldpetlvl = petminlvl;
         }
 
-        final PetData oldData = PetDataTable.getInstance().getPetDataByItemId(itemIdtake);
+        final PetTemplate oldData = PetDataTable.getInstance().getPetDataByItemId(itemIdtake);
         if (oldData == null) {
             return false;
         }
 
-        final PetData petData = PetDataTable.getInstance().getPetDataByItemId(itemIdgive);
-        if (petData == null) {
+        final PetTemplate petTemplate = PetDataTable.getInstance().getPetDataByItemId(itemIdgive);
+        if (petTemplate == null) {
             return false;
         }
 
-        final int npcId = petData.getNpcId();
+        final int npcId = petTemplate.getNpcId();
         if (npcId == 0) {
             return false;
         }
@@ -207,7 +206,7 @@ public final class Evolve {
         player.sendPacket(SystemMessageId.SUMMONING_YOUR_PET);
         petSummon.spawnMe(player.getX(), player.getY(), player.getZ());
         petSummon.startFeed();
-        addedItem.setEnchantLevel(petSummon.getLevel());
+        addedItem.changeEnchantLevel(petSummon.getLevel());
 
         // Inventory update
         final InventoryUpdate iu = new InventoryUpdate();
@@ -224,13 +223,7 @@ public final class Evolve {
             petSummon.startFeed();
         }
 
-        // pet control item no longer exists, delete the pet from the db
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement ps = con.prepareStatement("DELETE FROM pets WHERE item_obj_id=?")) {
-            ps.setInt(1, removedItem.getObjectId());
-            ps.execute();
-        } catch (Exception e) {
-        }
+        getDAO(PetDAO.class).deleteByItem(removedItem.getObjectId());
         return true;
     }
 

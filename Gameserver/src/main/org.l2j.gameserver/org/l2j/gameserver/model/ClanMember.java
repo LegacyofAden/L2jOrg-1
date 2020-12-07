@@ -18,19 +18,13 @@
  */
 package org.l2j.gameserver.model;
 
-import org.l2j.commons.database.DatabaseFactory;
 import org.l2j.gameserver.Config;
+import org.l2j.gameserver.data.database.dao.PlayerDAO;
 import org.l2j.gameserver.data.database.dao.PlayerVariablesDAO;
 import org.l2j.gameserver.data.database.data.PlayerData;
 import org.l2j.gameserver.enums.ClanRewardType;
 import org.l2j.gameserver.instancemanager.SiegeManager;
 import org.l2j.gameserver.model.actor.instance.Player;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
 import static org.l2j.commons.database.DatabaseAccess.getDAO;
 
@@ -38,7 +32,6 @@ import static org.l2j.commons.database.DatabaseAccess.getDAO;
  * This class holds the clan members data.
  */
 public class ClanMember {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClanMember.class);
 
     private final Clan clan;
     private int _objectId;
@@ -54,7 +47,6 @@ public class ClanMember {
     private int _apprentice;
     private int _sponsor;
     private long _onlineTime;
-
 
     public ClanMember(Clan clan, PlayerData memberData) {
         this.clan = clan;
@@ -90,8 +82,6 @@ public class ClanMember {
         _pledgeType = player.getPledgeType();
         _powerGrade = player.getPowerGrade();
         _title = player.getTitle();
-        _sponsor = 0;
-        _apprentice = 0;
         _sex = player.getAppearance().isFemale();
         _raceOrdinal = player.getRace().ordinal();
     }
@@ -461,7 +451,7 @@ public class ClanMember {
         if ((_player == null) || !_player.isOnline()) {
             return false;
         }
-        return (_player.getClient() != null) && !_player.getClient().isDetached();
+        return (_player.getClient() != null);
     }
 
     /**
@@ -533,18 +523,8 @@ public class ClanMember {
         }
     }
 
-    /**
-     * Update pledge type.
-     */
     public void updatePledgeType() {
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement ps = con.prepareStatement("UPDATE characters SET subpledge=? WHERE charId=?")) {
-            ps.setLong(1, _pledgeType);
-            ps.setInt(2, getObjectId());
-            ps.execute();
-        } catch (Exception e) {
-            LOGGER.warn("Could not update pledge type: " + e.getMessage(), e);
-        }
+        getDAO(PlayerDAO.class).updateSubpledge(_objectId, _pledgeType);
     }
 
     /**
@@ -567,21 +547,7 @@ public class ClanMember {
             _player.setPowerGrade(powerGrade);
         } else {
             // db save if char not logged in
-            updatePowerGrade();
-        }
-    }
-
-    /**
-     * Update the characters table of the database with power grade.
-     */
-    public void updatePowerGrade() {
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement ps = con.prepareStatement("UPDATE characters SET power_grade=? WHERE charId=?")) {
-            ps.setLong(1, _powerGrade);
-            ps.setInt(2, getObjectId());
-            ps.execute();
-        } catch (Exception e) {
-            LOGGER.warn("Could not update power _grade: " + e.getMessage(), e);
+            getDAO(PlayerDAO.class).updatePowerGrade(_objectId, _powerGrade);
         }
     }
 
@@ -676,15 +642,7 @@ public class ClanMember {
      * @param sponsor    the sponsor
      */
     public void saveApprenticeAndSponsor(int apprentice, int sponsor) {
-        try (Connection con = DatabaseFactory.getInstance().getConnection();
-             PreparedStatement ps = con.prepareStatement("UPDATE characters SET apprentice=?,sponsor=? WHERE charId=?")) {
-            ps.setInt(1, apprentice);
-            ps.setInt(2, sponsor);
-            ps.setInt(3, getObjectId());
-            ps.execute();
-        } catch (SQLException e) {
-            LOGGER.warn("Could not save apprentice/sponsor: " + e.getMessage(), e);
-        }
+        getDAO(PlayerDAO.class).updateApprenticeAndSponsor(_objectId, apprentice, sponsor);
     }
 
     public long getOnlineTime() {

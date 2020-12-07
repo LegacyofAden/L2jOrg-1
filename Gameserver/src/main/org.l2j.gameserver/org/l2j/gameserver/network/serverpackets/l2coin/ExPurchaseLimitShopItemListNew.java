@@ -18,7 +18,8 @@
  */
 package org.l2j.gameserver.network.serverpackets.l2coin;
 
-import org.l2j.gameserver.data.xml.impl.LCoinShopData;
+import io.github.joealisson.mmocore.WritableBuffer;
+import org.l2j.gameserver.engine.item.shop.LCoinShop;
 import org.l2j.gameserver.model.holders.ItemHolder;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
@@ -38,37 +39,37 @@ public class ExPurchaseLimitShopItemListNew extends ServerPacket {
     }
 
     @Override
-    protected void writeImpl(GameClient client)  {
-        writeId(ServerExPacketId.EX_PURCHASE_LIMIT_SHOP_ITEM_LIST_NEW);
-        writeByte(index);
+    protected void writeImpl(GameClient client, WritableBuffer buffer)  {
+        writeId(ServerExPacketId.EX_PURCHASE_LIMIT_SHOP_ITEM_LIST_NEW, buffer );
+        buffer.writeByte(index);
 
-        final var products = LCoinShopData.getInstance().getProductInfos();
-        writeInt(products.size());
+        final var products = LCoinShop.getInstance().getProductInfos();
+        buffer.writeInt(products.size());
 
-        products.values().forEach(product -> {
-            writeInt(product.getId());
-            writeInt(product.getProduction().getId());
-            writeIngredients(product.getIngredients());
-            writeInt(product.getRemainAmount());
-            writeInt(product.getRemainTime());
-            writeInt(product.getRemainServerItemAmount());
-        });
+        for (var product : products.values()) {
+            buffer.writeInt(product.id());
+            buffer.writeInt(product.production().getId());
+            writeIngredients(product.ingredients(), buffer);
+            buffer.writeInt(product.restrictionAmount() - LCoinShop.getInstance().boughtCount(client.getPlayer(), product));
+            buffer.writeInt(product.remainTime());
+            buffer.writeInt(product.remainServerItemAmount());
+        }
     }
 
-    private void writeIngredients(List<ItemHolder> ingredients) {
+    private void writeIngredients(List<ItemHolder> ingredients, WritableBuffer buffer) {
         for (int i = 0; i < 3; i++) {
             if(i < ingredients.size()) {
-                writeInt(ingredients.get(i).getId());
+                buffer.writeInt(ingredients.get(i).getId());
             } else {
-                writeInt(0);
+                buffer.writeInt(0);
             }
         }
 
         for (int i = 0; i < 3; i++) {
             if(i < ingredients.size()) {
-                writeLong(ingredients.get(i).getCount());
+                buffer.writeLong(ingredients.get(i).getCount());
             } else {
-                writeLong(0);
+                buffer.writeLong(0);
             }
 
         }

@@ -18,27 +18,23 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import org.l2j.gameserver.model.actor.instance.Player;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 
 /**
  * @author Sdw
+ * @author JoeAlisson
  */
 public class ExUserInfoInvenWeight extends ServerPacket {
-    private final Player _activeChar;
-
-    public ExUserInfoInvenWeight(Player cha) {
-        _activeChar = cha;
-    }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_USER_INFO_INVEN_WEIGHT);
-
-        writeInt(_activeChar.getObjectId());
-        writeInt(_activeChar.getCurrentLoad());
-        writeInt(_activeChar.getMaxLoad());
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_USER_INFO_INVEN_WEIGHT, buffer );
+        var player = client.getPlayer();
+        buffer.writeInt(player.getObjectId());
+        buffer.writeInt(player.getCurrentLoad());
+        buffer.writeInt(player.getMaxLoad());
     }
 
 }

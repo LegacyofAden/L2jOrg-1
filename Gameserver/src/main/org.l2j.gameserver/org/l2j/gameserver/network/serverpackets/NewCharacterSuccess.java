@@ -18,11 +18,11 @@
  */
 package org.l2j.gameserver.network.serverpackets;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerPacketId;
 
-@StaticPacket
+
 public final class NewCharacterSuccess extends ServerPacket {
 
     public static final NewCharacterSuccess STATIC_PACKET = new NewCharacterSuccess();
@@ -31,8 +31,8 @@ public final class NewCharacterSuccess extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerPacketId.NEW_CHARACTER_SUCCESS);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerPacketId.NEW_CHARACTER_SUCCESS, buffer );
     }
 
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns="http://l2j.org"
+      xsi:schemaLocation="http://l2j.org multisell.xsd">
+    <npcs>
+        34292 <!-- Chef Monkey -->
+    </npcs>
+    <item>
+        <ingredient id="57" count="2500"/> <!-- Adena -->
+        <production id="90171"/> <!-- Monkey Bait -->
+    </item>
+</list>

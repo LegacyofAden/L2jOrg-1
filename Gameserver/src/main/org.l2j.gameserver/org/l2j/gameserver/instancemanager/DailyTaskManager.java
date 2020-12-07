@@ -18,34 +18,37 @@
  */
 package org.l2j.gameserver.instancemanager;
 
-import org.l2j.commons.database.DatabaseFactory;
+import io.github.joealisson.primitive.HashIntSet;
+import io.github.joealisson.primitive.IntSet;
 import org.l2j.gameserver.Config;
+import org.l2j.gameserver.data.database.dao.AccountDAO;
+import org.l2j.gameserver.data.database.dao.ClanDAO;
+import org.l2j.gameserver.data.database.dao.PlayerDAO;
 import org.l2j.gameserver.data.database.dao.PlayerVariablesDAO;
 import org.l2j.gameserver.data.sql.impl.ClanTable;
 import org.l2j.gameserver.data.xml.ClanRewardManager;
+import org.l2j.gameserver.engine.item.shop.LCoinShop;
 import org.l2j.gameserver.engine.mission.MissionData;
 import org.l2j.gameserver.engine.rank.RankEngine;
 import org.l2j.gameserver.engine.vip.VipEngine;
 import org.l2j.gameserver.model.Clan;
 import org.l2j.gameserver.model.ClanMember;
-import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.model.actor.stat.PlayerStats;
-import org.l2j.gameserver.model.base.SubClass;
 import org.l2j.gameserver.model.eventengine.AbstractEvent;
 import org.l2j.gameserver.model.eventengine.AbstractEventManager;
 import org.l2j.gameserver.model.eventengine.ScheduleTarget;
 import org.l2j.gameserver.model.holders.SkillHolder;
 import org.l2j.gameserver.network.serverpackets.ExVoteSystemInfo;
 import org.l2j.gameserver.network.serverpackets.ExWorldChatCnt;
+import org.l2j.gameserver.settings.CharacterSettings;
 import org.l2j.gameserver.settings.ChatSettings;
+import org.l2j.gameserver.util.GameXmlReader;
 import org.l2j.gameserver.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Node;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.util.Collections;
-import java.util.List;
 
 import static java.util.Objects.nonNull;
 import static org.l2j.commons.configuration.Configurator.getSettings;
@@ -54,10 +57,22 @@ import static org.l2j.commons.database.DatabaseAccess.getDAO;
 /**
  * @author UnAfraid
  */
-public class DailyTaskManager extends AbstractEventManager<AbstractEvent<?>> {
+public class DailyTaskManager extends AbstractEventManager<AbstractEvent> {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(DailyTaskManager.class);
+    IntSet resetSkills = new HashIntSet();
 
     private DailyTaskManager() {
+    }
+
+    @Override
+    public void config(GameXmlReader reader, Node configNode) {
+        final var dailyConfig = configNode.getFirstChild();
+        if(nonNull(dailyConfig) && dailyConfig.getNodeName().equals("daily-config")) {
+            for(var skillNode = dailyConfig.getFirstChild(); nonNull(skillNode); skillNode = skillNode.getNextSibling()) {
+                resetSkills.add(reader.parseInt(skillNode.getAttributes(), "id"));
+            }
+        }
     }
 
     @Override
@@ -66,16 +81,49 @@ public class DailyTaskManager extends AbstractEventManager<AbstractEvent<?>> {
 
     @ScheduleTarget
     private void onReset() {
-        resetClanBonus();
-        resetExtendDrop();
+        ClanTable.getInstance().getClans().forEach(Clan::resetClanBonus);
         resetDailyMissionRewards();
         resetDailySkills();
-        resetRecommends();
-        resetWorldChatPoints();
-        resetTrainingCamp();
-        resetVipTierExpired();
-        resetRankers();
-        resetRevengeData();
+        RankEngine.getInstance().updateRankers();
+        resetPlayersData();
+        LCoinShop.getInstance().reloadShopHistory();
+        LOGGER.info("Daily task has been reset.");
+    }
+
+    private void resetPlayersData() {
+        // TODO block enter world until this method finish
+        World.getInstance().forEachPlayer(player -> {
+            player.setExtendDrop("");
+
+            player.setRecomLeft(20);
+            player.setRecomHave(player.getRecomHave() - 20);
+            player.sendPacket(new ExVoteSystemInfo(player));
+
+            if (getSettings(ChatSettings.class).worldChatEnabled()) {
+                player.setWorldChatUsed(0);
+                player.sendPacket(new ExWorldChatCnt(player));
+            }
+
+            if(player.getVipTier() > 0) {
+                VipEngine.getInstance().checkVipTierExpiration(player);
+            }
+
+            player.storeVariables();
+            player.resetRevengeData();
+            player.broadcastUserInfo();
+        });
+
+        getDAO(PlayerVariablesDAO.class).resetExtendDrop();
+        LOGGER.info("Daily Extend Drop has been reset.");
+
+        getDAO(PlayerDAO.class).resetRecommends();
+
+        if (getSettings(ChatSettings.class).worldChatEnabled()) {
+            getDAO(PlayerVariablesDAO.class).resetWorldChatPoint();
+            LOGGER.info("Daily world chat points has been reset.");
+        }
+
+        getDAO(PlayerVariablesDAO.class).resetRevengeData();
     }
 
     @ScheduleTarget
@@ -83,182 +131,41 @@ public class DailyTaskManager extends AbstractEventManager<AbstractEvent<?>> {
         GlobalVariablesManager.getInstance().storeMe();
     }
 
-
-
     @ScheduleTarget
     private void onClansTask(){
-        onClanLeaderApply();
-        GlobalVariablesManager.getInstance().resetRaidBonus();
-        onClanResetRaids();
-    }
-
-    private void onClanResetRaids() {
-        ClanTable.getInstance().forEachClan(clan ->{
-            ClanRewardManager.getInstance().checkArenaProgress(clan);
-        });
-    }
-
-    private void onClanLeaderApply() {
         for (Clan clan : ClanTable.getInstance().getClans()) {
-            if (clan.getNewLeaderId() != 0) {
-                final ClanMember member = clan.getClanMember(clan.getNewLeaderId());
-                if (member == null) {
-                    continue;
-                }
+            checkNewLeader(clan);
+            ClanRewardManager.getInstance().resetArenaProgress(clan);
+        }
+        getDAO(ClanDAO.class).resetArenaProgress();
+        LOGGER.info("Clans has been updated");
+    }
 
+    private void checkNewLeader(Clan clan) {
+        if (clan.getNewLeaderId() != 0) {
+            final ClanMember member = clan.getClanMember(clan.getNewLeaderId());
+            if(nonNull(member)) {
                 clan.setNewLeader(member);
             }
         }
-        LOGGER.info("Clan leaders has been updated");
     }
 
     @ScheduleTarget
     private void onVitalityReset() {
-        if (!Config.ENABLE_VITALITY) {
+        if (!getSettings(CharacterSettings.class).isVitalityEnabled()) {
             return;
         }
 
-        for (Player player : World.getInstance().getPlayers()) {
-            player.setVitalityPoints(PlayerStats.MAX_VITALITY_POINTS, false);
+        World.getInstance().forEachPlayer(player -> player.setVitalityPoints(PlayerStats.MAX_VITALITY_POINTS, false));
 
-            for (SubClass subclass : player.getSubClasses().values()) {
-                subclass.setVitalityPoints(PlayerStats.MAX_VITALITY_POINTS);
-            }
-        }
-
-        try (Connection con = DatabaseFactory.getInstance().getConnection()) {
-            try (PreparedStatement st = con.prepareStatement("UPDATE character_subclasses SET vitality_points = ?")) {
-                st.setInt(1, PlayerStats.MAX_VITALITY_POINTS);
-                st.execute();
-            }
-
-            try (PreparedStatement st = con.prepareStatement("UPDATE characters SET vitality_points = ?")) {
-                st.setInt(1, PlayerStats.MAX_VITALITY_POINTS);
-                st.execute();
-            }
-        } catch (Exception e) {
-            LOGGER.warn("Error while updating vitality", e);
-        }
-        LOGGER.info("Vitality resetted");
-    }
-
-    private void resetClanBonus() {
-        ClanTable.getInstance().getClans().forEach(Clan::resetClanBonus);
-        LOGGER.info("Daily clan bonus has been resetted.");
-    }
-
-    private void resetExtendDrop() {
-        // Update data for offline players.
-        getDAO(PlayerVariablesDAO.class).resetExtendDrop();
-
-        // Update data for online players.
-        World.getInstance().getPlayers().forEach(player ->
-        {
-            player.setExtendDrop("");
-            player.storeVariables();
-        });
-
-        LOGGER.info("Daily Extend Drop has been resetted.");
+        getDAO(PlayerDAO.class).resetVitality(PlayerStats.MAX_VITALITY_POINTS);
+        LOGGER.info("Vitality has been reset");
     }
 
     private void resetDailySkills() {
-        try (Connection con = DatabaseFactory.getInstance().getConnection()) {
-            final List<SkillHolder> dailySkills = getVariables().getList("reset_skills", SkillHolder.class, Collections.emptyList());
-            for (SkillHolder skill : dailySkills) {
-                try (PreparedStatement ps = con.prepareStatement("DELETE FROM character_skills_save WHERE skill_id=?;")) {
-                    ps.setInt(1, skill.getSkillId());
-                    ps.execute();
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.error("Could not reset daily skill reuse: ", e);
-        }
+        final var playerDao = getDAO(PlayerDAO.class);
+        resetSkills.forEach(playerDao::deleteSkillSave);
         LOGGER.info("Daily skill reuse cleaned.");
-    }
-
-    private void resetRevengeData() {
-        getDAO(PlayerVariablesDAO.class).resetRevengeData();
-        World.getInstance().forEachPlayer(player -> player.resetRevengeData());
-    }
-
-    private void resetWorldChatPoints() {
-        if (!getSettings(ChatSettings.class).worldChatEnabled()) {
-            return;
-        }
-
-        // Update data for offline players.
-        getDAO(PlayerVariablesDAO.class).resetWorldChatPoint();
-
-        // Update data for online players.
-        World.getInstance().getPlayers().forEach(player ->
-        {
-            player.setWorldChatUsed(0);
-            player.sendPacket(new ExWorldChatCnt(player));
-            player.storeVariables();
-        });
-
-        LOGGER.info("Daily world chat points has been resetted.");
-    }
-
-    private void resetRecommends() {
-        try (Connection con = DatabaseFactory.getInstance().getConnection()) {
-            try (PreparedStatement ps = con.prepareStatement("UPDATE character_reco_bonus SET rec_left = ?, rec_have = 0 WHERE rec_have <= 20")) {
-                ps.setInt(1, 0); // Rec left = 0
-                ps.execute();
-            }
-
-            try (PreparedStatement ps = con.prepareStatement("UPDATE character_reco_bonus SET rec_left = ?, rec_have = GREATEST(rec_have - 20,0) WHERE rec_have > 20")) {
-                ps.setInt(1, 0); // Rec left = 0
-                ps.execute();
-            }
-        } catch (Exception e) {
-            LOGGER.error("Could not reset Recommendations System: ", e);
-        }
-
-        World.getInstance().getPlayers().forEach(player ->
-        {
-            player.setRecomLeft(0);
-            player.setRecomHave(player.getRecomHave() - 20);
-            player.sendPacket(new ExVoteSystemInfo(player));
-            player.broadcastUserInfo();
-        });
-    }
-
-    private void resetTrainingCamp() {
-        if (Config.TRAINING_CAMP_ENABLE) {
-            // Update data for offline players.
-            try (Connection con = DatabaseFactory.getInstance().getConnection();
-                 PreparedStatement ps = con.prepareStatement("DELETE FROM account_gsdata WHERE var = ?")) {
-                ps.setString(1, "TRAINING_CAMP_DURATION");
-                ps.executeUpdate();
-            } catch (Exception e) {
-                LOGGER.error("Could not reset Training Camp: ", e);
-            }
-
-            // Update data for online players.
-            World.getInstance().getPlayers().forEach(player ->
-            {
-                player.resetTraingCampDuration();
-                player.getAccountVariables().storeMe();
-            });
-
-            LOGGER.info("Training Camp daily time has been resetted.");
-        }
-    }
-
-    private void resetVipTierExpired() {
-        World.getInstance().getPlayers().forEach(player -> {
-            if(player.getVipTier() < 1) {
-                return;
-            }
-
-            VipEngine.getInstance().checkVipTierExpiration(player);
-        });
-        LOGGER.info("VIP expiration time has been checked.");
-    }
-
-    private void resetRankers() {
-        RankEngine.getInstance().updateRankers();
     }
 
     private void resetDailyMissionRewards() {

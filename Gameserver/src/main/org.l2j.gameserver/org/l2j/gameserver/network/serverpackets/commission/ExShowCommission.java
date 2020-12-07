@@ -18,7 +18,7 @@
  */
 package org.l2j.gameserver.network.serverpackets.commission;
 
-import io.github.joealisson.mmocore.StaticPacket;
+import io.github.joealisson.mmocore.WritableBuffer;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
@@ -26,7 +26,7 @@ import org.l2j.gameserver.network.serverpackets.ServerPacket;
 /**
  * @author NosBit
  */
-@StaticPacket
+
 public class ExShowCommission extends ServerPacket {
     public static final ExShowCommission STATIC_PACKET = new ExShowCommission();
 
@@ -34,10 +34,10 @@ public class ExShowCommission extends ServerPacket {
     }
 
     @Override
-    public void writeImpl(GameClient client) {
-        writeId(ServerExPacketId.EX_SHOW_COMMISSION);
+    public void writeImpl(GameClient client, WritableBuffer buffer) {
+        writeId(ServerExPacketId.EX_SHOW_COMMISSION, buffer );
 
-        writeInt(0x01);
+        buffer.writeInt(0x01);
     }
 
 }

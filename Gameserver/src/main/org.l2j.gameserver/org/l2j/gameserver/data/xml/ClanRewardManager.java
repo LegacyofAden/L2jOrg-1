@@ -36,6 +36,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
 import static org.l2j.commons.configuration.Configurator.getSettings;
@@ -115,7 +116,7 @@ public class ClanRewardManager extends GameXmlReader {
 
             forEach(hunting, "item", itemsNode -> {
                 final NamedNodeMap itemsAttr = itemsNode.getAttributes();
-                bonus.setItemReward(new ItemHolder(parseInt(itemsAttr, "id"), parselong(itemsAttr, "count")));
+                bonus.setItemReward(new ItemHolder(parseInt(itemsAttr, "id"), parseLong(itemsAttr, "count")));
             });
 
             clanRewards.computeIfAbsent(bonus.getType(), key -> new ArrayList<>()).add(bonus);
@@ -145,6 +146,15 @@ public class ClanRewardManager extends GameXmlReader {
             if (nonNull(reward)) {
                 clan.addNewSkill(reward.getSkillReward().getSkill());
             }
+        }
+    }
+
+    public void resetArenaProgress(Clan clan) {
+        var progress = clan.getArenaProgress();
+        if(progress > 0) {
+            clan.setArenaProgress(0);
+            final var rewards = clanRewards.get(ARENA);
+            rewards.stream().map(reward -> reward.getSkillReward().getSkillId()).collect(Collectors.toSet()).forEach(clan::removeSkill);
         }
     }
 
